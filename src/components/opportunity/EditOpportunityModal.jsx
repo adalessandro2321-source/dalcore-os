@@ -33,6 +33,8 @@ export default function EditOpportunityModal({ opportunity, onClose, onSuccess }
 
   const updateMutation = useMutation({
     mutationFn: async (data) => {
+      console.log('Submitting opportunity update with data:', data);
+      
       // If moving to "Under Contract", create a project
       if (data.stage === 'Under Contract' && opportunity.stage !== 'Under Contract') {
         // Generate project number
@@ -73,31 +75,34 @@ export default function EditOpportunityModal({ opportunity, onClose, onSuccess }
         
         onSuccess();
         navigate(createPageUrl(`ProjectDetail?id=${project.id}`));
-        return;
+        return project;
       }
 
       // Normal update
       const updatedOpp = await base44.entities.Opportunity.update(opportunity.id, data);
+      console.log('Opportunity updated:', updatedOpp);
       return updatedOpp;
     },
     onSuccess: (result) => {
-      if (formData.stage !== 'Under Contract' && result) {
+      console.log('Update successful, result:', result);
+      // Only call onSuccess if we didn't create a project (which already called onSuccess)
+      if (result && formData.stage !== 'Under Contract') {
         onSuccess();
       }
     },
+    onError: (error) => {
+      console.error('Update failed:', error);
+      alert(`Failed to update opportunity: ${error.message}`);
+    }
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // Validate client selection
-    if (!formData.client_id) {
-      alert('Please select a client');
-      return;
-    }
-    
+    console.log('Form submitted with data:', formData);
     updateMutation.mutate(formData);
   };
+
+  const ownerCompanies = companies.filter(c => c.type === 'Owner');
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -119,26 +124,31 @@ export default function EditOpportunityModal({ opportunity, onClose, onSuccess }
           <div>
             <Label>Client <span className="text-red-600">*</span></Label>
             <Select
-              required
-              value={formData.client_id}
+              value={formData.client_id || ''}
               onValueChange={(value) => {
                 console.log('Client selected:', value);
-                setFormData({...formData, client_id: value});
+                setFormData(prev => ({...prev, client_id: value}));
               }}
             >
               <SelectTrigger className="bg-white border-gray-300 text-gray-900">
                 <SelectValue placeholder="Select client" />
               </SelectTrigger>
               <SelectContent className="bg-white border-gray-300">
-                {companies.filter(c => c.type === 'Owner').map((company) => (
-                  <SelectItem key={company.id} value={company.id}>
-                    {company.name}
-                  </SelectItem>
-                ))}
+                {ownerCompanies.length === 0 ? (
+                  <div className="p-2 text-sm text-gray-500">No clients available</div>
+                ) : (
+                  ownerCompanies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
-            {!formData.client_id && (
-              <p className="text-xs text-red-600 mt-1">Client is required</p>
+            {ownerCompanies.length === 0 && (
+              <p className="text-xs text-orange-600 mt-1">
+                No clients found. Create a company with type "Owner" first.
+              </p>
             )}
           </div>
 
@@ -254,7 +264,7 @@ export default function EditOpportunityModal({ opportunity, onClose, onSuccess }
             <Button 
               type="submit"
               className="bg-[#1B4D3E] hover:bg-[#14503C] text-white"
-              disabled={updateMutation.isPending || !formData.client_id}
+              disabled={updateMutation.isPending}
             >
               {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
