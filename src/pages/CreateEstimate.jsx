@@ -11,9 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Trash2, Save, Download } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Download, Sparkles } from "lucide-react";
 import { formatCurrency } from "../components/shared/DateFormatter";
 import { format } from "date-fns";
+import SmartQuoteUpload from "../components/estimate/SmartQuoteUpload";
 
 const DEFAULT_SUBCONTRACTORS = [
   "Demolition Contractor",
@@ -58,6 +59,7 @@ export default function CreateEstimate() {
   const estimateId = urlParams.get('id');
 
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [showSmartQuoteUpload, setShowSmartQuoteUpload] = React.useState(false);
 
   const [formData, setFormData] = React.useState({
     name: "",
@@ -171,6 +173,80 @@ export default function CreateEstimate() {
     }
   };
 
+  const handleQuoteExtracted = ({ type, data, fileUrl }) => {
+    if (type === 'subcontractor') {
+      // Find matching subcontractor by trade type or vendor name
+      const subIndex = formData.subcontractor_line_items.findIndex(sub =>
+        sub.name.toLowerCase().includes(data.trade_type?.toLowerCase() || '') ||
+        sub.name.toLowerCase().includes(data.vendor_name?.toLowerCase() || '')
+      );
+
+      if (subIndex !== -1) {
+        // Update existing subcontractor
+        updateSubcontractorLineItem(subIndex, 'sub_cost', data.total_amount || 0);
+        if (data.labor_hours) {
+          updateSubcontractorLineItem(subIndex, 'labor_hours', data.labor_hours);
+        }
+        if (data.notes || data.description) {
+          updateSubcontractorLineItem(subIndex, 'notes', data.notes || data.description || '');
+        }
+      } else {
+        // Add as new subcontractor line item
+        setFormData(prev => ({
+          ...prev,
+          subcontractor_line_items: [
+            ...prev.subcontractor_line_items,
+            {
+              name: data.vendor_name || data.trade_type || 'New Subcontractor',
+              unit_cost: 0,
+              sub_cost: data.total_amount || 0,
+              labor_hours: data.labor_hours || 0,
+              total: data.total_amount || 0,
+              notes: data.notes || data.description || ''
+            }
+          ]
+        }));
+      }
+    } else {
+      // Materials quote - add to task line items
+      if (data.items && data.items.length > 0) {
+        const newItems = data.items.map(item => ({
+          description: item.description || 'Material',
+          quantity: item.quantity || 1,
+          unit_cost: item.unit_cost || 0,
+          material_cost: (item.quantity || 1) * (item.unit_cost || 0),
+          labor_hours: 0,
+          total: (item.quantity || 1) * (item.unit_cost || 0),
+          notes: data.vendor_name ? `Quote from ${data.vendor_name}` : ''
+        }));
+
+        setFormData(prev => ({
+          ...prev,
+          task_line_items: [...prev.task_line_items, ...newItems]
+        }));
+      } else {
+        // Add as single line item if no items array
+        setFormData(prev => ({
+          ...prev,
+          task_line_items: [
+            ...prev.task_line_items,
+            {
+              description: `Materials from ${data.vendor_name || 'Vendor'}`,
+              quantity: 1,
+              unit_cost: data.total || data.subtotal || 0,
+              material_cost: data.total || data.subtotal || 0,
+              labor_hours: 0,
+              total: data.total || data.subtotal || 0,
+              notes: data.quote_number ? `Quote #${data.quote_number}` : ''
+            }
+          ]
+        }));
+      }
+    }
+
+    setShowSmartQuoteUpload(false);
+  };
+
   // Calculate all totals
   const calculations = React.useMemo(() => {
     // Task line items totals - ONLY materials from task items
@@ -260,7 +336,7 @@ export default function CreateEstimate() {
 
     // Build line items array with FLOATED general labor costs
     const lineItems = [];
-    
+
     // Calculate the general labor costs that need to be distributed
     const generalLaborHours = formData.labor_hours || 0;
     const generalLaborCost = generalLaborHours * formData.labor_rate;
@@ -270,18 +346,18 @@ export default function CreateEstimate() {
 
     // Calculate total base costs for all items (before markup) to determine distribution
     let totalBaseCostForFloatingDistribution = 0;
-    
+
     // Calculate base costs for task items
     const taskItemBaseCosts = formData.task_line_items.map(item => {
       const materialCostRaw = (item.quantity || 0) * (item.unit_cost || 0);
       const laborHoursItem = item.labor_hours || 0;
-      
+
       const materialCostWithTax = materialCostRaw * (1 + salesTaxRateDecimal);
       const materialCostWithTaxAndBurden = materialCostWithTax * generalProductionCostFactor;
       const laborCostItem = laborHoursItem * formData.labor_rate;
       const adminHoursItem = (laborHoursItem / 8) * formData.admin_hours_per_8_labor_hours;
       const adminCostItem = adminHoursItem * formData.administration_rate;
-      
+
       const baseCost = materialCostWithTaxAndBurden + laborCostItem + adminCostItem;
       totalBaseCostForFloatingDistribution += baseCost;
       return baseCost;
@@ -294,7 +370,7 @@ export default function CreateEstimate() {
       const laborCostSub = laborHoursSub * formData.labor_rate;
       const adminHoursSub = (laborHoursSub / 8) * formData.admin_hours_per_8_labor_hours;
       const adminCostSub = adminHoursSub * formData.administration_rate;
-      
+
       const baseCost = subCostRaw + laborCostSub + adminCostSub;
       totalBaseCostForFloatingDistribution += baseCost;
       return baseCost;
@@ -307,17 +383,17 @@ export default function CreateEstimate() {
     // Task Line Items - with floated general labor
     formData.task_line_items.forEach((item, index) => {
       const baseCost = taskItemBaseCosts[index];
-      
+
       // Calculate this item's share of general labor costs
       let shareOfFloatedCosts = 0;
       if (totalBaseCostForFloatingDistribution > 0) {
         shareOfFloatedCosts = (baseCost / totalBaseCostForFloatingDistribution) * totalGeneralLaborAndAdminCostsToFloat;
       }
-      
+
       // Add the share to the base cost, then apply markup
       const costIncludingFloated = baseCost + shareOfFloatedCosts;
       const fullyLoadedPrice = costIncludingFloated * markupFactor;
-      
+
       if (fullyLoadedPrice > 0) {
         lineItems.push({
           task: item.description || 'Task',
@@ -331,17 +407,17 @@ export default function CreateEstimate() {
     formData.subcontractor_line_items.forEach((sub, index) => {
       if ((sub.sub_cost || 0) > 0) {
         const baseCost = subItemBaseCosts[index];
-        
+
         // Calculate this item's share of general labor costs
         let shareOfFloatedCosts = 0;
         if (totalBaseCostForFloatingDistribution > 0) {
           shareOfFloatedCosts = (baseCost / totalBaseCostForFloatingDistribution) * totalGeneralLaborAndAdminCostsToFloat;
         }
-        
+
         // Add the share to the base cost, then apply markup
         const costIncludingFloated = baseCost + shareOfFloatedCosts;
         const fullyLoadedPrice = costIncludingFloated * markupFactor;
-        
+
         lineItems.push({
           task: sub.name,
           cost: fullyLoadedPrice,
@@ -357,11 +433,11 @@ export default function CreateEstimate() {
       if (totalBaseCostForFloatingDistribution > 0) {
         shareOfFloatedCosts = (permitCostRaw / totalBaseCostForFloatingDistribution) * totalGeneralLaborAndAdminCostsToFloat;
       }
-      
+
       // Add the share to the permit cost, then apply markup
       const costIncludingFloated = permitCostRaw + shareOfFloatedCosts;
       const permitWithMarkup = costIncludingFloated * markupFactor;
-      
+
       lineItems.push({
         task: 'Permits & Fees',
         cost: permitWithMarkup,
@@ -620,6 +696,14 @@ export default function CreateEstimate() {
           </div>
         </div>
         <div className="flex gap-3">
+          <Button
+            onClick={() => setShowSmartQuoteUpload(true)}
+            variant="outline"
+            className="border-[#2A6B5A] text-[#1B4D3E]"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Upload Quote
+          </Button>
           {estimateId && (
             <Button
               variant="outline"
@@ -1023,7 +1107,7 @@ export default function CreateEstimate() {
                     {formData.task_line_items.length === 0 && (
                       <tr>
                         <td colSpan="8" className="p-8 text-center text-gray-600">
-                          No items yet. Click "Add Item" to get started.
+                          No items yet. Click "Add Item" or "Upload Quote" to get started.
                         </td>
                       </tr>
                     )}
@@ -1126,6 +1210,24 @@ export default function CreateEstimate() {
           </Card>
         </div>
       </div>
+
+      {/* Smart Quote Upload Modal */}
+      <Dialog open={showSmartQuoteUpload} onOpenChange={setShowSmartQuoteUpload}>
+        <DialogContent className="bg-[#F5F4F3] border-gray-300 text-gray-900 max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-[#2A6B5A]" />
+              Smart Quote Upload
+            </DialogTitle>
+          </DialogHeader>
+          <SmartQuoteUpload
+            opportunityId={opportunityId}
+            estimateId={estimateId}
+            onQuoteExtracted={handleQuoteExtracted}
+            onCancel={() => setShowSmartQuoteUpload(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
