@@ -27,6 +27,7 @@ import Finance from './pages/Finance';
 import BillsInvoices from './pages/BillsInvoices';
 import CreateEstimate from './pages/CreateEstimate';
 import Home from './pages/Home';
+import ClientPortal from './pages/ClientPortal';
 import Layout from './Layout.jsx';
 
 
@@ -60,6 +61,7 @@ export const PAGES = {
     "BillsInvoices": BillsInvoices,
     "CreateEstimate": CreateEstimate,
     "Home": Home,
+    "ClientPortal": ClientPortal,
 }
 
 export const pagesConfig = {
