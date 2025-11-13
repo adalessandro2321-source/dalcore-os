@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,7 +16,7 @@ export default function EditOpportunityModal({ opportunity, onClose, onSuccess }
     client_id: opportunity.client_id || '',
     stage: opportunity.stage || 'Lead',
     estimated_value: opportunity.estimated_value || '',
-    probability: opportunity.probability || 0, // Kept 0 for numerical field
+    probability: opportunity.probability || 0,
     bid_due_date: opportunity.bid_due_date || '',
     project_start_date: opportunity.project_start_date || '',
     assigned_to: opportunity.assigned_to || '',
@@ -51,13 +50,13 @@ export default function EditOpportunityModal({ opportunity, onClose, onSuccess }
         // Create the project
         const project = await base44.entities.Project.create({
           number: projectNumber,
-          name: data.name, // Use updated form data
-          client_id: data.client_id, // Use updated form data
+          name: data.name,
+          client_id: data.client_id,
           status: 'Planning',
-          contract_value: data.estimated_value || 0, // Use updated form data
-          start_date: data.project_start_date || null, // Use updated form data
-          description: data.description || '', // Use updated form data
-          notes: `Converted from opportunity on ${new Date().toLocaleDateString()}\n\n${data.notes || ''}`, // Use updated form data for notes
+          contract_value: data.estimated_value || 0,
+          start_date: data.project_start_date || null,
+          description: data.description || '',
+          notes: `Converted from opportunity on ${new Date().toLocaleDateString()}\n\n${data.notes || ''}`,
         });
 
         // Update opportunity with project link
@@ -72,18 +71,16 @@ export default function EditOpportunityModal({ opportunity, onClose, onSuccess }
         
         alert(`✅ Project created successfully!\n\nProject Number: ${projectNumber}\n\nRedirecting to project...`);
         
-        onSuccess(); // Call original onSuccess to close modal or other actions
+        onSuccess();
         navigate(createPageUrl(`ProjectDetail?id=${project.id}`));
-        return; // Stop further execution in this mutationFn
+        return;
       }
 
-      // Normal update if stage is not changing to "Under Contract" or already is
+      // Normal update
       const updatedOpp = await base44.entities.Opportunity.update(opportunity.id, data);
       return updatedOpp;
     },
     onSuccess: (result) => {
-      // Only call onSuccess if we didn't redirect (i.e., not creating a project)
-      // If a project was created, onSuccess() was already called inside mutationFn
       if (formData.stage !== 'Under Contract' && result) {
         onSuccess();
       }
@@ -92,6 +89,13 @@ export default function EditOpportunityModal({ opportunity, onClose, onSuccess }
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validate client selection
+    if (!formData.client_id) {
+      alert('Please select a client');
+      return;
+    }
+    
     updateMutation.mutate(formData);
   };
 
@@ -115,8 +119,12 @@ export default function EditOpportunityModal({ opportunity, onClose, onSuccess }
           <div>
             <Label>Client <span className="text-red-600">*</span></Label>
             <Select
+              required
               value={formData.client_id}
-              onValueChange={(value) => setFormData({...formData, client_id: value})}
+              onValueChange={(value) => {
+                console.log('Client selected:', value);
+                setFormData({...formData, client_id: value});
+              }}
             >
               <SelectTrigger className="bg-white border-gray-300 text-gray-900">
                 <SelectValue placeholder="Select client" />
@@ -129,6 +137,9 @@ export default function EditOpportunityModal({ opportunity, onClose, onSuccess }
                 ))}
               </SelectContent>
             </Select>
+            {!formData.client_id && (
+              <p className="text-xs text-red-600 mt-1">Client is required</p>
+            )}
           </div>
 
           <div>
@@ -243,7 +254,7 @@ export default function EditOpportunityModal({ opportunity, onClose, onSuccess }
             <Button 
               type="submit"
               className="bg-[#1B4D3E] hover:bg-[#14503C] text-white"
-              disabled={updateMutation.isPending}
+              disabled={updateMutation.isPending || !formData.client_id}
             >
               {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
