@@ -16,7 +16,7 @@ import { formatCurrency } from "../shared/DateFormatter";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 export default function OpportunityAnalytics({ opportunities }) {
-  // Fetch ALL projects - this is key!
+  // Fetch ALL projects
   const { data: allProjects = [], isLoading: projectsLoading } = useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
@@ -51,18 +51,10 @@ export default function OpportunityAnalytics({ opportunities }) {
 
     // Calculate total value of Active/Completed projects with change orders
     let retroactiveWinsValue = 0;
-    const projectDetails = [];
     
     activeCompletedProjects.forEach(project => {
       const finalValue = getProjectFinalValue(project.id, project.contract_value || 0);
       retroactiveWinsValue += finalValue;
-      projectDetails.push({
-        id: project.id,
-        name: project.name,
-        status: project.status,
-        baseValue: project.contract_value || 0,
-        finalValue: finalValue
-      });
     });
 
     // Count opportunities by stage (excluding Under Contract as they're now projects)
@@ -143,8 +135,7 @@ export default function OpportunityAnalytics({ opportunities }) {
       avgAwardedValue,
       bracketStats,
       retroactiveWinsCount: activeCompletedProjects.length,
-      retroactiveWinsValue,
-      projectDetails // Include project details for debugging
+      retroactiveWinsValue
     };
   }, [opportunities, allProjects, allChangeOrders]);
 
@@ -168,116 +159,6 @@ export default function OpportunityAnalytics({ opportunities }) {
 
   return (
     <div className="space-y-6">
-      {/* Debug Info - Shows data being used */}
-      <Card className="bg-purple-50 border-purple-200">
-        <CardContent className="p-4">
-          <div className="text-sm space-y-1">
-            <p className="font-semibold text-purple-900">📊 Data Summary:</p>
-            <p className="text-purple-800">• Total Projects in System: {allProjects.length}</p>
-            <p className="text-purple-800">• Active Projects: {allProjects.filter(p => p.status === 'Active').length}</p>
-            <p className="text-purple-800">• Completed Projects: {allProjects.filter(p => p.status === 'Completed').length}</p>
-            <p className="text-purple-800">• Total Change Orders: {allChangeOrders.length}</p>
-            <p className="text-purple-800">• Approved Change Orders: {allChangeOrders.filter(co => co.status === 'Approved').length}</p>
-            <p className="text-purple-800">• Opportunities (excl. Under Contract): {opportunities.filter(o => o.stage !== 'Under Contract').length}</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Retroactive Wins Banner - ALWAYS show if there are Active/Completed projects */}
-      {analytics.retroactiveWinsCount > 0 && (
-        <Card className="bg-gradient-to-r from-blue-50 to-green-50 border-blue-300">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-blue-600 rounded-lg">
-                <Award className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xl font-bold text-blue-900 mb-2">
-                  🎉 {analytics.retroactiveWinsCount} Active/Completed Projects Counted as Wins
-                </p>
-                <p className="text-blue-700 mb-3">
-                  These projects are automatically included in your win rate and awarded value calculations.
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white p-3 rounded-lg border border-blue-200">
-                    <p className="text-xs text-blue-600 mb-1">Total Contract Value</p>
-                    <p className="text-2xl font-bold text-blue-900">
-                      {formatCurrency(analytics.retroactiveWinsValue)}
-                    </p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Includes approved change orders
-                    </p>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg border border-blue-200">
-                    <p className="text-xs text-blue-600 mb-1">Project Breakdown</p>
-                    <p className="text-sm text-blue-800">
-                      Active: {allProjects.filter(p => p.status === 'Active').length} • 
-                      Completed: {allProjects.filter(p => p.status === 'Completed').length}
-                    </p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      All counted toward success rate
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Project Details (for verification) */}
-      {analytics.projectDetails && analytics.projectDetails.length > 0 && (
-        <Card className="bg-white border-gray-200">
-          <CardHeader className="border-b border-gray-200">
-            <CardTitle className="text-lg">Active/Completed Projects Included as Wins</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-700">Project</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-700">Status</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Base Contract</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Final Value (w/ COs)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {analytics.projectDetails.map((project) => (
-                    <tr key={project.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-900">{project.name}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          project.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {project.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-900">
-                        {formatCurrency(project.baseValue)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                        {formatCurrency(project.finalValue)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-gray-50 border-t-2 border-gray-300">
-                  <tr>
-                    <td colSpan="3" className="px-4 py-3 text-right font-semibold text-gray-900">
-                      Total Value (all projects):
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-green-600 text-lg">
-                      {formatCurrency(analytics.retroactiveWinsValue)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-white border-gray-200">
@@ -466,7 +347,7 @@ export default function OpportunityAnalytics({ opportunities }) {
                 {analytics.retroactiveWinsCount > 0 && (
                   <div className="p-2 bg-blue-50 rounded border border-blue-200">
                     <p className="text-xs text-blue-800 mb-1">
-                      ✅ {analytics.retroactiveWinsCount} Active/Completed projects
+                      Includes {analytics.retroactiveWinsCount} Active/Completed projects
                     </p>
                     <p className="text-xs font-semibold text-blue-900">
                       {formatCurrency(analytics.retroactiveWinsValue)}
@@ -574,6 +455,21 @@ export default function OpportunityAnalytics({ opportunities }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Empty State */}
+      {analytics.closed === 0 && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="p-6 text-center">
+            <BarChart3 className="w-12 h-12 mx-auto mb-3 text-blue-600" />
+            <p className="text-blue-900 font-medium mb-1">
+              Start Closing Opportunities
+            </p>
+            <p className="text-sm text-blue-700">
+              Mark opportunities as Awarded, Lost, or No Longer Bidding to see detailed analytics and success metrics
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
