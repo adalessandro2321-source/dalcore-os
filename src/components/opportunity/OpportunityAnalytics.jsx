@@ -10,101 +10,96 @@ import {
   DollarSign,
   BarChart3,
   Award,
-  Ban
+  Loader2
 } from "lucide-react";
 import { formatCurrency } from "../shared/DateFormatter";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 export default function OpportunityAnalytics({ opportunities }) {
-  // Fetch projects to include Active/Completed as wins
-  const { data: projects = [], isLoading: projectsLoading } = useQuery({
+  // Fetch ALL projects - this is key!
+  const { data: allProjects = [], isLoading: projectsLoading } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => base44.entities.Project.list(),
+    queryFn: async () => {
+      const projects = await base44.entities.Project.list();
+      return projects;
+    },
   });
 
-  // Fetch change orders to calculate final contract values
-  const { data: changeOrders = [], isLoading: changeOrdersLoading } = useQuery({
+  // Fetch ALL change orders
+  const { data: allChangeOrders = [], isLoading: changeOrdersLoading } = useQuery({
     queryKey: ['changeOrders'],
-    queryFn: () => base44.entities.ChangeOrder.list(),
+    queryFn: async () => {
+      const orders = await base44.entities.ChangeOrder.list();
+      return orders;
+    },
   });
 
   const analytics = React.useMemo(() => {
-    console.log('Analytics calculation - Projects:', projects.length, 'Change Orders:', changeOrders.length);
-    
-    // Helper function to calculate project's final contract value (including approved COs)
+    // Helper to calculate project final value with change orders
     const getProjectFinalValue = (projectId, baseValue) => {
-      const approvedCOs = changeOrders.filter(
+      const approvedCOs = allChangeOrders.filter(
         co => co.project_id === projectId && co.status === 'Approved'
       );
       const coValue = approvedCOs.reduce((sum, co) => sum + (co.cost_impact || 0), 0);
-      const finalValue = (baseValue || 0) + coValue;
-      console.log(`Project ${projectId}: Base ${baseValue} + COs ${coValue} = ${finalValue}`);
-      return finalValue;
+      return (baseValue || 0) + coValue;
     };
 
-    // Get ALL Active/Completed projects - these are wins
-    const activeCompletedProjects = projects.filter(p => 
+    // Get ALL Active and Completed projects - these count as wins!
+    const activeCompletedProjects = allProjects.filter(p => 
       p.status === 'Active' || p.status === 'Completed'
     );
-    
-    console.log('Active/Completed projects found:', activeCompletedProjects.length);
 
-    // Create a map of project IDs to their final values
-    const projectValueMap = new Map();
+    // Calculate total value of Active/Completed projects with change orders
+    let retroactiveWinsValue = 0;
+    const projectDetails = [];
+    
     activeCompletedProjects.forEach(project => {
       const finalValue = getProjectFinalValue(project.id, project.contract_value || 0);
-      projectValueMap.set(project.id, finalValue);
+      retroactiveWinsValue += finalValue;
+      projectDetails.push({
+        id: project.id,
+        name: project.name,
+        status: project.status,
+        baseValue: project.contract_value || 0,
+        finalValue: finalValue
+      });
     });
 
-    // Count opportunities by stage (excluding those with Active/Completed projects to avoid confusion)
-    const opportunitiesWithoutActiveProjects = opportunities.filter(opp => {
-      if (!opp.project_id) return true;
-      const project = projects.find(p => p.id === opp.project_id);
-      return !project || (project.status !== 'Active' && project.status !== 'Completed');
-    });
-
-    const awarded = opportunitiesWithoutActiveProjects.filter(o => o.stage === 'Awarded').length;
-    const lost = opportunitiesWithoutActiveProjects.filter(o => o.stage === 'Lost').length;
-    const noLongerBidding = opportunitiesWithoutActiveProjects.filter(o => o.stage === 'No Longer Bidding').length;
-    const active = opportunitiesWithoutActiveProjects.filter(o => ['Lead', 'Qualified', 'Bidding'].includes(o.stage)).length;
+    // Count opportunities by stage (excluding Under Contract as they're now projects)
+    const activeOpportunities = opportunities.filter(opp => opp.stage !== 'Under Contract');
     
-    // Total wins = Awarded opportunities (without active projects) + ALL Active/Completed projects
+    const awarded = activeOpportunities.filter(o => o.stage === 'Awarded').length;
+    const lost = activeOpportunities.filter(o => o.stage === 'Lost').length;
+    const noLongerBidding = activeOpportunities.filter(o => o.stage === 'No Longer Bidding').length;
+    const active = activeOpportunities.filter(o => ['Lead', 'Qualified', 'Bidding'].includes(o.stage)).length;
+    
+    // TOTAL WINS = Awarded opportunities + ALL Active/Completed projects
     const totalWins = awarded + activeCompletedProjects.length;
-    
-    console.log('Total wins:', totalWins, '(Awarded opps:', awarded, '+ Active/Completed projects:', activeCompletedProjects.length, ')');
     
     // Success rate
     const closed = totalWins + lost + noLongerBidding;
     const successRate = closed > 0 ? (totalWins / closed * 100) : 0;
     
-    // Values
-    const totalEstimatedValue = opportunities.reduce((sum, o) => sum + (o.estimated_value || 0), 0);
+    // Calculate values
+    const totalEstimatedValue = activeOpportunities.reduce((sum, o) => sum + (o.estimated_value || 0), 0);
     
-    // Awarded value = sum of all Active/Completed project values + awarded opportunities without projects
-    let awardedValue = 0;
+    // Awarded value = awarded opportunities + all Active/Completed project values
+    let awardedValue = retroactiveWinsValue; // Start with all project values
     
-    // Add all Active/Completed project values (with change orders)
-    activeCompletedProjects.forEach(project => {
-      awardedValue += projectValueMap.get(project.id) || 0;
-    });
-    
-    // Add awarded opportunities that don't have Active/Completed projects
-    opportunitiesWithoutActiveProjects.filter(o => o.stage === 'Awarded').forEach(opp => {
+    activeOpportunities.filter(o => o.stage === 'Awarded').forEach(opp => {
       awardedValue += opp.estimated_value || 0;
     });
 
-    console.log('Total awarded value:', awardedValue);
-
-    const lostValue = opportunitiesWithoutActiveProjects
+    const lostValue = activeOpportunities
       .filter(o => o.stage === 'Lost')
       .reduce((sum, o) => sum + (o.estimated_value || 0), 0);
       
-    const activeValue = opportunitiesWithoutActiveProjects
+    const activeValue = activeOpportunities
       .filter(o => ['Lead', 'Qualified', 'Bidding'].includes(o.stage))
       .reduce((sum, o) => sum + (o.estimated_value || 0), 0);
 
-    // Average values
-    const avgValue = opportunities.length > 0 ? totalEstimatedValue / opportunities.length : 0;
+    // Averages
+    const avgValue = activeOpportunities.length > 0 ? totalEstimatedValue / activeOpportunities.length : 0;
     const avgAwardedValue = totalWins > 0 ? awardedValue / totalWins : 0;
 
     // By value bracket
@@ -116,7 +111,7 @@ export default function OpportunityAnalytics({ opportunities }) {
     ];
 
     const bracketStats = brackets.map(bracket => {
-      const inBracket = opportunities.filter(o => 
+      const inBracket = activeOpportunities.filter(o => 
         (o.estimated_value || 0) >= bracket.min && (o.estimated_value || 0) < bracket.max
       );
       const awardedInBracket = inBracket.filter(o => o.stage === 'Awarded').length;
@@ -132,11 +127,8 @@ export default function OpportunityAnalytics({ opportunities }) {
       };
     }).filter(b => b.total > 0);
 
-    // Calculate retroactive wins value for display
-    const retroactiveWinsValue = Array.from(projectValueMap.values()).reduce((sum, val) => sum + val, 0);
-
     return {
-      total: opportunities.length,
+      total: activeOpportunities.length,
       awarded: totalWins,
       lost,
       noLongerBidding,
@@ -151,20 +143,22 @@ export default function OpportunityAnalytics({ opportunities }) {
       avgAwardedValue,
       bracketStats,
       retroactiveWinsCount: activeCompletedProjects.length,
-      retroactiveWinsValue
+      retroactiveWinsValue,
+      projectDetails // Include project details for debugging
     };
-  }, [opportunities, projects, changeOrders]);
+  }, [opportunities, allProjects, allChangeOrders]);
 
   // Show loading state
   if (projectsLoading || changeOrdersLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-600">Loading analytics data...</p>
+        <Loader2 className="w-8 h-8 animate-spin text-[#1B4D3E]" />
+        <p className="text-gray-600 ml-3">Loading analytics data...</p>
       </div>
     );
   }
 
-  // Pie chart data for stage distribution
+  // Pie chart data
   const stageDistribution = [
     { name: 'Active Pipeline', value: analytics.active, color: '#3B5B48' },
     { name: 'Awarded (Total)', value: analytics.awarded, color: '#0E351F' },
@@ -174,20 +168,111 @@ export default function OpportunityAnalytics({ opportunities }) {
 
   return (
     <div className="space-y-6">
-      {/* Retroactive Wins Banner */}
+      {/* Debug Info - Shows data being used */}
+      <Card className="bg-purple-50 border-purple-200">
+        <CardContent className="p-4">
+          <div className="text-sm space-y-1">
+            <p className="font-semibold text-purple-900">📊 Data Summary:</p>
+            <p className="text-purple-800">• Total Projects in System: {allProjects.length}</p>
+            <p className="text-purple-800">• Active Projects: {allProjects.filter(p => p.status === 'Active').length}</p>
+            <p className="text-purple-800">• Completed Projects: {allProjects.filter(p => p.status === 'Completed').length}</p>
+            <p className="text-purple-800">• Total Change Orders: {allChangeOrders.length}</p>
+            <p className="text-purple-800">• Approved Change Orders: {allChangeOrders.filter(co => co.status === 'Approved').length}</p>
+            <p className="text-purple-800">• Opportunities (excl. Under Contract): {opportunities.filter(o => o.stage !== 'Under Contract').length}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Retroactive Wins Banner - ALWAYS show if there are Active/Completed projects */}
       {analytics.retroactiveWinsCount > 0 && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Award className="w-5 h-5 text-blue-600" />
-              <div>
-                <p className="font-semibold text-blue-900">
-                  {analytics.retroactiveWinsCount} Active/Completed Projects Counted as Wins
-                </p>
-                <p className="text-sm text-blue-700">
-                  Total value: {formatCurrency(analytics.retroactiveWinsValue)} (includes approved change orders)
-                </p>
+        <Card className="bg-gradient-to-r from-blue-50 to-green-50 border-blue-300">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-blue-600 rounded-lg">
+                <Award className="w-6 h-6 text-white" />
               </div>
+              <div className="flex-1">
+                <p className="text-xl font-bold text-blue-900 mb-2">
+                  🎉 {analytics.retroactiveWinsCount} Active/Completed Projects Counted as Wins
+                </p>
+                <p className="text-blue-700 mb-3">
+                  These projects are automatically included in your win rate and awarded value calculations.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white p-3 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-600 mb-1">Total Contract Value</p>
+                    <p className="text-2xl font-bold text-blue-900">
+                      {formatCurrency(analytics.retroactiveWinsValue)}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Includes approved change orders
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-600 mb-1">Project Breakdown</p>
+                    <p className="text-sm text-blue-800">
+                      Active: {allProjects.filter(p => p.status === 'Active').length} • 
+                      Completed: {allProjects.filter(p => p.status === 'Completed').length}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      All counted toward success rate
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Project Details (for verification) */}
+      {analytics.projectDetails && analytics.projectDetails.length > 0 && (
+        <Card className="bg-white border-gray-200">
+          <CardHeader className="border-b border-gray-200">
+            <CardTitle className="text-lg">Active/Completed Projects Included as Wins</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-700">Project</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-700">Status</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Base Contract</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Final Value (w/ COs)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {analytics.projectDetails.map((project) => (
+                    <tr key={project.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-900">{project.name}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          project.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {project.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-900">
+                        {formatCurrency(project.baseValue)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-gray-900">
+                        {formatCurrency(project.finalValue)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+                  <tr>
+                    <td colSpan="3" className="px-4 py-3 text-right font-semibold text-gray-900">
+                      Total Value (all projects):
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-green-600 text-lg">
+                      {formatCurrency(analytics.retroactiveWinsValue)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           </CardContent>
         </Card>
@@ -266,7 +351,6 @@ export default function OpportunityAnalytics({ opportunities }) {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Stage Distribution */}
         <Card className="bg-white border-gray-200">
           <CardHeader className="border-b border-gray-200">
             <CardTitle className="text-lg">Opportunity Distribution</CardTitle>
@@ -301,7 +385,6 @@ export default function OpportunityAnalytics({ opportunities }) {
           </CardContent>
         </Card>
 
-        {/* Win Rate by Value Bracket */}
         <Card className="bg-white border-gray-200">
           <CardHeader className="border-b border-gray-200">
             <CardTitle className="text-lg">Win Rate by Project Size</CardTitle>
@@ -383,7 +466,7 @@ export default function OpportunityAnalytics({ opportunities }) {
                 {analytics.retroactiveWinsCount > 0 && (
                   <div className="p-2 bg-blue-50 rounded border border-blue-200">
                     <p className="text-xs text-blue-800 mb-1">
-                      Includes {analytics.retroactiveWinsCount} Active/Completed projects
+                      ✅ {analytics.retroactiveWinsCount} Active/Completed projects
                     </p>
                     <p className="text-xs font-semibold text-blue-900">
                       {formatCurrency(analytics.retroactiveWinsValue)}
@@ -491,21 +574,6 @@ export default function OpportunityAnalytics({ opportunities }) {
           </div>
         </CardContent>
       </Card>
-
-      {/* Quick Stats */}
-      {analytics.closed === 0 && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="p-6 text-center">
-            <BarChart3 className="w-12 h-12 mx-auto mb-3 text-blue-600" />
-            <p className="text-blue-900 font-medium mb-1">
-              Start Closing Opportunities
-            </p>
-            <p className="text-sm text-blue-700">
-              Mark opportunities as Awarded, Lost, or No Longer Bidding to see detailed analytics and success metrics
-            </p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
