@@ -11,6 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { formatCurrency } from "../components/shared/DateFormatter";
 
@@ -92,39 +98,51 @@ export default function Opportunities() {
       header: "Stage",
       accessorKey: "stage",
       cell: (row) => (
-        <Select
-          value={row.stage}
-          onValueChange={(value) => handleStageChange(row.id, value, event)}
-        >
-          <SelectTrigger 
-            className="w-[180px] h-8 bg-white border-gray-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <SelectValue>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <div className="cursor-pointer hover:opacity-80 transition-opacity">
               <StatusBadge status={row.stage} />
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent className="bg-white border-gray-300">
-            <SelectItem value="Lead">
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="bg-white border-gray-300">
+            <DropdownMenuItem 
+              onClick={(e) => handleStageChange(row.id, 'Lead', e)}
+              className="cursor-pointer"
+            >
               <StatusBadge status="Lead" />
-            </SelectItem>
-            <SelectItem value="Qualified">
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={(e) => handleStageChange(row.id, 'Qualified', e)}
+              className="cursor-pointer"
+            >
               <StatusBadge status="Qualified" />
-            </SelectItem>
-            <SelectItem value="Bidding">
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={(e) => handleStageChange(row.id, 'Bidding', e)}
+              className="cursor-pointer"
+            >
               <StatusBadge status="Bidding" />
-            </SelectItem>
-            <SelectItem value="No Longer Bidding">
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={(e) => handleStageChange(row.id, 'No Longer Bidding', e)}
+              className="cursor-pointer"
+            >
               <StatusBadge status="No Longer Bidding" />
-            </SelectItem>
-            <SelectItem value="Awarded">
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={(e) => handleStageChange(row.id, 'Awarded', e)}
+              className="cursor-pointer"
+            >
               <StatusBadge status="Awarded" />
-            </SelectItem>
-            <SelectItem value="Lost">
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={(e) => handleStageChange(row.id, 'Lost', e)}
+              className="cursor-pointer"
+            >
               <StatusBadge status="Lost" />
-            </SelectItem>
-          </SelectContent>
-        </Select>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ),
       sortable: true,
     },
