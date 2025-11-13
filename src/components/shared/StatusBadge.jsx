@@ -16,6 +16,7 @@ const statusConfig = {
   Awarded: { bg: "bg-[#0E351F]/20", text: "text-[#0E351F]", border: "border-[#0E351F]/30" },
   "Under Contract": { bg: "bg-blue-500/20", text: "text-blue-700", border: "border-blue-500/30" },
   Lost: { bg: "bg-red-500/20", text: "text-red-700", border: "border-red-500/30" },
+  "No Longer Bidding": { bg: "bg-gray-500/20", text: "text-gray-700", border: "border-gray-500/30" },
   
   // Invoice/Bill statuses
   Draft: { bg: "bg-[#E8E7DD]", text: "text-[#5A7765]", border: "border-[#C9C8AF]" },
