@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -48,7 +48,6 @@ const navigationItems = [
 ];
 
 export default function Layout({ children, currentPageName }) {
-  const location = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
@@ -92,6 +91,11 @@ export default function Layout({ children, currentPageName }) {
   const displayPageName = currentPageName === "ProjectDetail" 
     ? "Project Detail" 
     : (currentPageName || '');
+
+  // Helper to check if current page is active - using currentPageName instead of location
+  const isPageActive = (pageUrl) => {
+    return currentPageName === pageUrl;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -187,7 +191,7 @@ export default function Layout({ children, currentPageName }) {
           <nav className="flex-1 overflow-y-auto py-4 px-3">
             <div className="space-y-1">
               {navigationItems.map((item) => {
-                const isActive = location.pathname === createPageUrl(item.url);
+                const isActive = isPageActive(item.url);
                 
                 return (
                   <Link
