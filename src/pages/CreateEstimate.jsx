@@ -135,25 +135,36 @@ export default function CreateEstimate() {
 
   React.useEffect(() => {
     if (existingEstimate) {
-      setFormData(existingEstimate);
+      // When loading an existing estimate, preserve the opportunity_id from URL if present
+      setFormData({
+        ...existingEstimate,
+        opportunity_id: opportunityId || existingEstimate.opportunity_id || ""
+      });
     }
-  }, [existingEstimate]);
+  }, [existingEstimate, opportunityId]);
 
   const createMutation = useMutation({
     mutationFn: (data) => {
+      console.log('Saving estimate with data:', data);
       if (estimateId) {
         return base44.entities.Estimate.update(estimateId, data);
       }
       return base44.entities.Estimate.create(data);
     },
     onSuccess: (estimate) => {
+      console.log('Estimate saved successfully:', estimate);
       queryClient.invalidateQueries({ queryKey: ['estimates'] });
+      queryClient.invalidateQueries({ queryKey: ['estimates', opportunityId] }); // Invalidate opportunity-specific estimates
       if (opportunityId) {
         navigate(createPageUrl(`OpportunityDetail?id=${opportunityId}`));
       } else {
         navigate(createPageUrl('Estimates'));
       }
     },
+    onError: (error) => {
+      console.error('Failed to save estimate:', error);
+      alert(`Failed to save estimate: ${error.message}`);
+    }
   });
 
   const deleteMutation = useMutation({
@@ -324,8 +335,11 @@ export default function CreateEstimate() {
   const handleSave = () => {
     const dataToSave = {
       ...formData,
-      ...calculations
+      ...calculations,
+      // Ensure opportunity_id is always included, prioritizing URL param, then existing form data
+      opportunity_id: opportunityId || formData.opportunity_id || ""
     };
+    console.log('Data being saved:', dataToSave);
     createMutation.mutate(dataToSave);
   };
 
