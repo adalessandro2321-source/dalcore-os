@@ -59,10 +59,73 @@ export default function Opportunities() {
   });
 
   const updateStageMutation = useMutation({
-    mutationFn: ({ id, stage }) => base44.entities.Opportunity.update(id, { stage }),
+    mutationFn: async ({ id, stage, opportunityData }) => {
+      console.log('Stage change requested:', { id, stage, opportunityData });
+      
+      // If moving to "Under Contract", create a project
+      if (stage === 'Under Contract') {
+        const opportunity = opportunityData;
+        
+        // Generate project number
+        const projects = await base44.entities.Project.list();
+        const year = new Date().getFullYear();
+        const projectNumbers = projects
+          .filter(p => p.number && p.number.startsWith(`P-${year}`))
+          .map(p => {
+            const match = p.number.match(/P-\d{4}-(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+          });
+        const nextNumber = projectNumbers.length > 0 ? Math.max(...projectNumbers) + 1 : 1;
+        const projectNumber = `P-${year}-${String(nextNumber).padStart(3, '0')}`;
+
+        console.log('Creating project with number:', projectNumber);
+
+        // Create the project
+        const project = await base44.entities.Project.create({
+          number: projectNumber,
+          name: opportunity.name,
+          client_id: opportunity.client_id,
+          opportunity_id: opportunity.id,
+          status: 'Planning',
+          contract_value: opportunity.estimated_value || 0,
+          start_date: opportunity.project_start_date || null,
+          description: opportunity.description || '',
+          notes: `Converted from opportunity on ${new Date().toLocaleDateString()}\n\n${opportunity.notes || ''}`,
+        });
+
+        console.log('Project created:', project);
+
+        // Update opportunity with project link and new stage
+        const updatedOpp = await base44.entities.Opportunity.update(id, {
+          stage: 'Under Contract',
+          project_id: project.id
+        });
+
+        console.log('Opportunity updated:', updatedOpp);
+
+        // Invalidate queries
+        await queryClient.invalidateQueries({ queryKey: ['opportunities'] });
+        await queryClient.invalidateQueries({ queryKey: ['projects'] });
+        
+        // Show success message and navigate
+        setTimeout(() => {
+          alert(`✅ Project created successfully!\n\nProject Number: ${projectNumber}\n\nThe opportunity has been moved to Projects.`);
+          navigate(createPageUrl(`ProjectDetail?id=${project.id}`));
+        }, 100);
+        
+        return updatedOpp;
+      }
+
+      // Normal stage update
+      return await base44.entities.Opportunity.update(id, { stage });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['opportunities'] });
     },
+    onError: (error) => {
+      console.error('Stage update failed:', error);
+      alert(`Failed to update opportunity: ${error.message}`);
+    }
   });
 
   const handleSubmit = (e) => {
@@ -74,9 +137,22 @@ export default function Opportunities() {
     navigate(createPageUrl(`OpportunityDetail?id=${opportunity.id}`));
   };
 
-  const handleStageChange = (opportunityId, newStage, e) => {
+  const handleStageChange = (opportunity, newStage, e) => {
     e.stopPropagation(); // Prevent row click navigation
-    updateStageMutation.mutate({ id: opportunityId, stage: newStage });
+    
+    // Confirm if moving to Under Contract
+    if (newStage === 'Under Contract') {
+      const confirmed = confirm(
+        `This will create a new project for "${opportunity.name}" and remove it from the opportunities pipeline.\n\nContinue?`
+      );
+      if (!confirmed) return;
+    }
+    
+    updateStageMutation.mutate({ 
+      id: opportunity.id, 
+      stage: newStage,
+      opportunityData: opportunity 
+    });
   };
 
   const getClientName = (clientId) => {
@@ -109,37 +185,43 @@ export default function Opportunities() {
           </DropdownMenuTrigger>
           <DropdownMenuContent className="bg-white border-gray-300">
             <DropdownMenuItem 
-              onClick={(e) => handleStageChange(row.id, 'Lead', e)}
+              onClick={(e) => handleStageChange(row, 'Lead', e)}
               className="cursor-pointer"
             >
               <StatusBadge status="Lead" />
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={(e) => handleStageChange(row.id, 'Qualified', e)}
+              onClick={(e) => handleStageChange(row, 'Qualified', e)}
               className="cursor-pointer"
             >
               <StatusBadge status="Qualified" />
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={(e) => handleStageChange(row.id, 'Bidding', e)}
+              onClick={(e) => handleStageChange(row, 'Bidding', e)}
               className="cursor-pointer"
             >
               <StatusBadge status="Bidding" />
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={(e) => handleStageChange(row.id, 'No Longer Bidding', e)}
+              onClick={(e) => handleStageChange(row, 'No Longer Bidding', e)}
               className="cursor-pointer"
             >
               <StatusBadge status="No Longer Bidding" />
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={(e) => handleStageChange(row.id, 'Awarded', e)}
+              onClick={(e) => handleStageChange(row, 'Awarded', e)}
               className="cursor-pointer"
             >
               <StatusBadge status="Awarded" />
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={(e) => handleStageChange(row.id, 'Lost', e)}
+              onClick={(e) => handleStageChange(row, 'Under Contract', e)}
+              className="cursor-pointer"
+            >
+              <StatusBadge status="Under Contract" />
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={(e) => handleStageChange(row, 'Lost', e)}
               className="cursor-pointer"
             >
               <StatusBadge status="Lost" />
