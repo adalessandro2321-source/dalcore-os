@@ -88,7 +88,8 @@ export default function CreateEstimate() {
       notes: "" // Added notes field
     })),
     status: "Draft",
-    sold_contract_price: 0 // Added for the new input
+    sold_contract_price: 0, // Added for the new input
+    notes: "" // General notes for the entire estimate
   });
 
   const { data: user } = useQuery({
@@ -804,6 +805,20 @@ export default function CreateEstimate() {
                     <SelectItem value="Lost">Lost</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div>
+                <Label>Estimate Notes</Label>
+                <Textarea
+                  value={formData.notes || ''}
+                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                  className="bg-white border-gray-300"
+                  rows={4}
+                  placeholder="Add any notes or assumptions for this estimate..."
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  General notes about this estimate (internal use)
+                </p>
               </div>
             </CardContent>
           </Card>
