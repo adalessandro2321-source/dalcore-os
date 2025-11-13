@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -50,6 +49,13 @@ export default function Opportunities() {
     },
   });
 
+  const updateStageMutation = useMutation({
+    mutationFn: ({ id, stage }) => base44.entities.Opportunity.update(id, { stage }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['opportunities'] });
+    },
+  });
+
   const handleSubmit = (e) => {
     e.preventDefault();
     createMutation.mutate(formData);
@@ -57,6 +63,11 @@ export default function Opportunities() {
 
   const handleRowClick = (opportunity) => {
     navigate(createPageUrl(`OpportunityDetail?id=${opportunity.id}`));
+  };
+
+  const handleStageChange = (opportunityId, newStage, e) => {
+    e.stopPropagation(); // Prevent row click navigation
+    updateStageMutation.mutate({ id: opportunityId, stage: newStage });
   };
 
   const getClientName = (clientId) => {
@@ -80,7 +91,41 @@ export default function Opportunities() {
     {
       header: "Stage",
       accessorKey: "stage",
-      cell: (row) => <StatusBadge status={row.stage} />,
+      cell: (row) => (
+        <Select
+          value={row.stage}
+          onValueChange={(value) => handleStageChange(row.id, value, event)}
+        >
+          <SelectTrigger 
+            className="w-[180px] h-8 bg-white border-gray-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <SelectValue>
+              <StatusBadge status={row.stage} />
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent className="bg-white border-gray-300">
+            <SelectItem value="Lead">
+              <StatusBadge status="Lead" />
+            </SelectItem>
+            <SelectItem value="Qualified">
+              <StatusBadge status="Qualified" />
+            </SelectItem>
+            <SelectItem value="Bidding">
+              <StatusBadge status="Bidding" />
+            </SelectItem>
+            <SelectItem value="No Longer Bidding">
+              <StatusBadge status="No Longer Bidding" />
+            </SelectItem>
+            <SelectItem value="Awarded">
+              <StatusBadge status="Awarded" />
+            </SelectItem>
+            <SelectItem value="Lost">
+              <StatusBadge status="Lost" />
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      ),
       sortable: true,
     },
     {
@@ -130,7 +175,7 @@ export default function Opportunities() {
         emptyMessage="No opportunities yet. Add your first lead."
         statusFilter={{
           field: 'stage',
-          options: ['Lead', 'Qualified', 'Bidding', 'Awarded', 'Lost']
+          options: ['Lead', 'Qualified', 'Bidding', 'No Longer Bidding', 'Awarded', 'Lost']
         }}
       />
 
@@ -184,6 +229,7 @@ export default function Opportunities() {
                     <SelectItem value="Lead">Lead</SelectItem>
                     <SelectItem value="Qualified">Qualified</SelectItem>
                     <SelectItem value="Bidding">Bidding</SelectItem>
+                    <SelectItem value="No Longer Bidding">No Longer Bidding</SelectItem>
                     <SelectItem value="Awarded">Awarded</SelectItem>
                     <SelectItem value="Lost">Lost</SelectItem>
                   </SelectContent>
