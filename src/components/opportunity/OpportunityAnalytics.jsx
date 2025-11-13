@@ -94,12 +94,12 @@ export default function OpportunityAnalytics({ opportunities }) {
     const avgValue = activeOpportunities.length > 0 ? totalEstimatedValue / activeOpportunities.length : 0;
     const avgAwardedValue = totalWins > 0 ? awardedValue / totalWins : 0;
 
-    // By value bracket
+    // By value bracket - adjusted for smaller project sizes
     const brackets = [
-      { name: '< $500K', min: 0, max: 500000 },
-      { name: '$500K - $1M', min: 500000, max: 1000000 },
-      { name: '$1M - $5M', min: 1000000, max: 5000000 },
-      { name: '> $5M', min: 5000000, max: Infinity },
+      { name: '< $100K', min: 0, max: 100000 },
+      { name: '$100K - $250K', min: 100000, max: 250000 },
+      { name: '$250K - $500K', min: 250000, max: 500000 },
+      { name: '> $500K', min: 500000, max: Infinity },
     ];
 
     const bracketStats = brackets.map(bracket => {
