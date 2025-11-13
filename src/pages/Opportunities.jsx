@@ -5,7 +5,9 @@ import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import DataTable from "../components/shared/DataTable";
 import StatusBadge from "../components/shared/StatusBadge";
+import OpportunityAnalytics from "../components/opportunity/OpportunityAnalytics";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { formatCurrency } from "../components/shared/DateFormatter";
+import { List, BarChart3 } from "lucide-react";
 
 const formatDate = (dateString) => {
   if (!dateString) return '-';
@@ -184,18 +187,37 @@ export default function Opportunities() {
         </div>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={activeOpportunities}
-        isLoading={isLoading}
-        onCreateNew={() => setShowCreateModal(true)}
-        onRowClick={handleRowClick}
-        emptyMessage="No opportunities yet. Add your first lead."
-        statusFilter={{
-          field: 'stage',
-          options: ['Lead', 'Qualified', 'Bidding', 'No Longer Bidding', 'Awarded', 'Lost']
-        }}
-      />
+      <Tabs defaultValue="list" className="space-y-6">
+        <TabsList className="bg-[#F5F4F3] border border-gray-200">
+          <TabsTrigger value="list" className="data-[state=active]:bg-[#1B4D3E] data-[state=active]:text-white">
+            <List className="w-4 h-4 mr-2" />
+            Opportunities List
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="data-[state=active]:bg-[#1B4D3E] data-[state=active]:text-white">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Analytics
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list">
+          <DataTable
+            columns={columns}
+            data={activeOpportunities}
+            isLoading={isLoading}
+            onCreateNew={() => setShowCreateModal(true)}
+            onRowClick={handleRowClick}
+            emptyMessage="No opportunities yet. Add your first lead."
+            statusFilter={{
+              field: 'stage',
+              options: ['Lead', 'Qualified', 'Bidding', 'No Longer Bidding', 'Awarded', 'Lost']
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <OpportunityAnalytics opportunities={opportunities} />
+        </TabsContent>
+      </Tabs>
 
       {/* Create Modal */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
