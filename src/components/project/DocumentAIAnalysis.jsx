@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Brain, 
   Loader2, 
@@ -19,7 +20,13 @@ import {
   AlertCircle,
   CheckCircle2,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  Check,
+  X,
+  ClipboardList,
+  CalendarPlus,
+  Receipt,
+  FileCheck
 } from "lucide-react";
 import { formatDate, formatCurrency } from "../shared/DateFormatter";
 import { Link } from "react-router-dom";
@@ -29,6 +36,13 @@ export default function DocumentAIAnalysis({ document, projectId, onUpdate }) {
   const [analysis, setAnalysis] = React.useState(null);
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
   const [error, setError] = React.useState(null);
+  const [selectedItems, setSelectedItems] = React.useState({
+    tasks: [],
+    financials: [],
+    dates: [],
+    changeOrders: []
+  });
+  const [applyingData, setApplyingData] = React.useState(false);
   const queryClient = useQueryClient();
 
   const { data: allDocuments = [] } = useQuery({
@@ -37,22 +51,22 @@ export default function DocumentAIAnalysis({ document, projectId, onUpdate }) {
     enabled: !!projectId,
   });
 
-  const { data: tasks = [] } = useQuery({
-    queryKey: ['tasks', projectId],
-    queryFn: () => base44.entities.Task.filter({ project_id: projectId }),
-    enabled: !!projectId && analysis?.relationships?.tasks?.length > 0,
+  const { data: project } = useQuery({
+    queryKey: ['project', projectId],
+    queryFn: async () => {
+      const projects = await base44.entities.Project.list();
+      return projects.find(p => p.id === projectId);
+    },
+    enabled: !!projectId,
   });
 
-  const { data: changeOrders = [] } = useQuery({
-    queryKey: ['changeOrders', projectId],
-    queryFn: () => base44.entities.ChangeOrder.filter({ project_id: projectId }),
-    enabled: !!projectId && analysis?.relationships?.change_orders?.length > 0,
-  });
-
-  const { data: dailyLogs = [] } = useQuery({
-    queryKey: ['dailyLogs', projectId],
-    queryFn: () => base44.entities.DailyLog.filter({ project_id: projectId }),
-    enabled: !!projectId && analysis?.relationships?.daily_logs?.length > 0,
+  const { data: projectBudget } = useQuery({
+    queryKey: ['projectBudget', projectId],
+    queryFn: async () => {
+      const budgets = await base44.entities.ProjectBudget.filter({ project_id: projectId });
+      return budgets[0];
+    },
+    enabled: !!projectId,
   });
 
   const updateDocumentMutation = useMutation({
@@ -63,14 +77,47 @@ export default function DocumentAIAnalysis({ document, projectId, onUpdate }) {
     },
   });
 
+  const createTaskMutation = useMutation({
+    mutationFn: (data) => base44.entities.Task.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+    },
+  });
+
+  const updateProjectMutation = useMutation({
+    mutationFn: (data) => base44.entities.Project.update(projectId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+    },
+  });
+
+  const updateBudgetMutation = useMutation({
+    mutationFn: (data) => {
+      if (projectBudget?.id) {
+        return base44.entities.ProjectBudget.update(projectBudget.id, data);
+      }
+      return base44.entities.ProjectBudget.create({ project_id: projectId, ...data });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projectBudget', projectId] });
+    },
+  });
+
+  const createChangeOrderMutation = useMutation({
+    mutationFn: (data) => base44.entities.ChangeOrder.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['changeOrders', projectId] });
+    },
+  });
+
   const analyzeDocument = async () => {
     if (!document || !document.file_url) return;
     
     setIsAnalyzing(true);
     setError(null);
+    setSelectedItems({ tasks: [], financials: [], dates: [], changeOrders: [] });
 
     try {
-      // Get document content context
       const otherDocuments = allDocuments
         .filter(d => d.id !== document.id)
         .map(d => ({
@@ -82,143 +129,44 @@ export default function DocumentAIAnalysis({ document, projectId, onUpdate }) {
           tags: d.tags
         }));
 
-      const prompt = `You are an expert construction document analyst specializing in categorizing, extracting information, and identifying relationships in project documentation.
-
-Analyze this document and provide comprehensive structured information:
+      const prompt = `You are an expert construction document analyst. Analyze this document and extract actionable data that can be imported into project management systems.
 
 DOCUMENT DETAILS:
 - Name: ${document.name}
 - Current Folder: ${document.folder || 'Not categorized'}
 - Current Type: ${document.type || 'Unknown'}
-- Current Description: ${document.description || 'None'}
-- Current Tags: ${document.tags?.join(', ') || 'None'}
 
-OTHER DOCUMENTS IN PROJECT:
-${JSON.stringify(otherDocuments.slice(0, 50), null, 2)}
+PROJECT CONTEXT:
+- Project Name: ${project?.name || 'Unknown'}
+- Current Contract Value: ${project?.contract_value || 0}
+- Current Start Date: ${project?.start_date || 'Not set'}
+- Current Target Completion: ${project?.target_completion_date || 'Not set'}
 
-Your analysis should include:
+Provide structured analysis with ACTIONABLE DATA that can be directly imported:
 
-1. CATEGORIZATION
-   - Recommended folder (Contracts, Correspondences, Drawings & Specs, Estimates, Invoices, Permits, Photos, Proposals, Quotes, Schedules, Change Orders, Bills, Payments)
-   - Document type (Plan, Specification, Contract, Change Order, Invoice, Bill, Payment, RFI, Submittal, Report, Other)
-   - Confidence level for categorization
+1. CATEGORIZATION - Smart folder/type recommendations
 
-2. KEY INFORMATION EXTRACTION
-   - Important dates (effective dates, due dates, completion dates)
-   - Financial figures (amounts, costs, prices)
-   - Parties involved (companies, individuals, roles)
-   - Key topics and subjects
-   - Action items or requirements
-   - Deadlines
+2. ACTIONABLE SCHEDULE DATA - Tasks/milestones that can be created
+   - Extract specific tasks with dates, durations, responsible parties
+   - Include predecessor/successor relationships if mentioned
+   - Extract any schedule milestones
 
-3. TAGS & METADATA
-   - Suggested tags (5-10 relevant keywords)
-   - Trade/discipline if applicable
-   - Location/area if applicable
-   - Priority level if applicable
+3. ACTIONABLE FINANCIAL DATA - Financial figures that can update project budgets
+   - Contract amounts, change order values, costs
+   - Include what field each amount should update (contract_value, budget, etc.)
 
-4. DOCUMENT RELATIONSHIPS
-   - Related document names/IDs from the list
-   - Potential links to tasks (describe what tasks this relates to)
-   - Potential links to change orders (if document mentions changes, scope modifications)
-   - Potential links to daily logs (if document discusses site conditions, issues)
-   - Relationship types (supersedes, references, supports, contradicts)
+4. ACTIONABLE PROJECT DATES - Dates that can update project settings
+   - Start dates, completion dates, key milestones
+   - Specify which project field to update
 
-5. CONTENT SUMMARY
-   - Executive summary (2-3 sentences)
-   - Key points (bullet list)
-   - Issues or concerns mentioned
-   - Decisions or approvals documented
+5. ACTIONABLE CHANGE ORDERS - If this is a change order or mentions scope changes
+   - Extract CO number, description, cost impact, schedule impact
 
-Consider construction industry context:
-- Contract terms and conditions
-- Schedule impacts
-- Cost implications
-- Safety concerns
-- Quality requirements
-- Compliance and regulatory issues
+6. TAGS & RELATIONSHIPS
 
-Respond in JSON:
-{
-  "categorization": {
-    "recommended_folder": "folder name",
-    "recommended_type": "type name",
-    "confidence": "High/Medium/Low",
-    "reasoning": "why this categorization"
-  },
-  "key_information": {
-    "dates": [
-      {
-        "type": "Effective Date/Due Date/Completion Date/etc",
-        "date": "YYYY-MM-DD",
-        "description": "context"
-      }
-    ],
-    "financial_figures": [
-      {
-        "type": "Contract Amount/Cost/Price/etc",
-        "amount": number,
-        "description": "context"
-      }
-    ],
-    "parties": [
-      {
-        "name": "party name",
-        "role": "Owner/GC/Subcontractor/etc",
-        "context": "what they're involved in"
-      }
-    ],
-    "key_topics": ["topic 1", "topic 2"],
-    "action_items": ["action 1", "action 2"],
-    "deadlines": [
-      {
-        "description": "what's due",
-        "date": "YYYY-MM-DD",
-        "priority": "High/Medium/Low"
-      }
-    ]
-  },
-  "tags": {
-    "suggested_tags": ["tag1", "tag2", "tag3"],
-    "trade": "trade name or null",
-    "location": "location or null",
-    "priority": "High/Medium/Low/null"
-  },
-  "relationships": {
-    "related_documents": [
-      {
-        "document_id": "id",
-        "document_name": "name",
-        "relationship_type": "References/Supersedes/Supports/etc",
-        "description": "how they're related"
-      }
-    ],
-    "tasks": [
-      {
-        "description": "what task this relates to",
-        "reasoning": "why it's related"
-      }
-    ],
-    "change_orders": [
-      {
-        "description": "what change order this relates to",
-        "reasoning": "why it's related"
-      }
-    ],
-    "daily_logs": [
-      {
-        "description": "what daily log topic this relates to",
-        "reasoning": "why it's related"
-      }
-    ]
-  },
-  "summary": {
-    "executive_summary": "brief overview",
-    "key_points": ["point 1", "point 2"],
-    "issues_concerns": ["issue 1", "issue 2"],
-    "decisions_approvals": ["decision 1", "decision 2"]
-  }
-}`;
+7. SUMMARY with key points and concerns
+
+Respond in JSON with this structure for actionable items:`;
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: prompt,
@@ -235,54 +183,60 @@ Respond in JSON:
                 reasoning: { type: "string" }
               }
             },
-            key_information: {
-              type: "object",
-              properties: {
-                dates: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      type: { type: "string" },
-                      date: { type: "string" },
-                      description: { type: "string" }
-                    }
-                  }
-                },
-                financial_figures: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      type: { type: "string" },
-                      amount: { type: "number" },
-                      description: { type: "string" }
-                    }
-                  }
-                },
-                parties: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      name: { type: "string" },
-                      role: { type: "string" },
-                      context: { type: "string" }
-                    }
-                  }
-                },
-                key_topics: { type: "array", items: { type: "string" } },
-                action_items: { type: "array", items: { type: "string" } },
-                deadlines: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      description: { type: "string" },
-                      date: { type: "string" },
-                      priority: { type: "string" }
-                    }
-                  }
+            actionable_tasks: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  description: { type: "string" },
+                  start_date: { type: "string" },
+                  finish_date: { type: "string" },
+                  duration_days: { type: "number" },
+                  responsible_party: { type: "string" },
+                  trade: { type: "string" },
+                  predecessors: { type: "string" },
+                  confidence: { type: "string" }
+                }
+              }
+            },
+            actionable_financials: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  type: { type: "string" },
+                  amount: { type: "number" },
+                  target_field: { type: "string" },
+                  description: { type: "string" },
+                  confidence: { type: "string" }
+                }
+              }
+            },
+            actionable_dates: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  type: { type: "string" },
+                  date: { type: "string" },
+                  target_field: { type: "string" },
+                  description: { type: "string" },
+                  confidence: { type: "string" }
+                }
+              }
+            },
+            actionable_change_orders: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  number: { type: "string" },
+                  reason: { type: "string" },
+                  description: { type: "string" },
+                  cost_impact: { type: "number" },
+                  schedule_impact_days: { type: "number" },
+                  confidence: { type: "string" }
                 }
               }
             },
@@ -309,36 +263,6 @@ Respond in JSON:
                       description: { type: "string" }
                     }
                   }
-                },
-                tasks: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      description: { type: "string" },
-                      reasoning: { type: "string" }
-                    }
-                  }
-                },
-                change_orders: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      description: { type: "string" },
-                      reasoning: { type: "string" }
-                    }
-                  }
-                },
-                daily_logs: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      description: { type: "string" },
-                      reasoning: { type: "string" }
-                    }
-                  }
                 }
               }
             },
@@ -361,6 +285,128 @@ Respond in JSON:
       setError('Failed to analyze document. Please try again.');
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const toggleItemSelection = (category, index) => {
+    setSelectedItems(prev => {
+      const current = prev[category] || [];
+      if (current.includes(index)) {
+        return { ...prev, [category]: current.filter(i => i !== index) };
+      } else {
+        return { ...prev, [category]: [...current, index] };
+      }
+    });
+  };
+
+  const selectAllInCategory = (category, items) => {
+    setSelectedItems(prev => ({
+      ...prev,
+      [category]: items.map((_, idx) => idx)
+    }));
+  };
+
+  const deselectAllInCategory = (category) => {
+    setSelectedItems(prev => ({
+      ...prev,
+      [category]: []
+    }));
+  };
+
+  const applySelectedData = async () => {
+    setApplyingData(true);
+    
+    try {
+      // Apply selected tasks
+      if (selectedItems.tasks.length > 0 && analysis?.actionable_tasks) {
+        for (const idx of selectedItems.tasks) {
+          const task = analysis.actionable_tasks[idx];
+          await createTaskMutation.mutateAsync({
+            project_id: projectId,
+            name: task.name,
+            description: task.description || '',
+            start_date: task.start_date || null,
+            finish_date: task.finish_date || null,
+            duration_days: task.duration_days || null,
+            trade: task.trade || null,
+            notes: `Extracted from document: ${document.name}`
+          });
+        }
+      }
+
+      // Apply selected financials
+      if (selectedItems.financials.length > 0 && analysis?.actionable_financials) {
+        const projectUpdates = {};
+        const budgetUpdates = {};
+
+        for (const idx of selectedItems.financials) {
+          const financial = analysis.actionable_financials[idx];
+          const field = financial.target_field?.toLowerCase();
+          
+          if (field === 'contract_value' || field === 'contract value') {
+            projectUpdates.contract_value = financial.amount;
+          } else if (field === 'budget') {
+            projectUpdates.budget = financial.amount;
+          } else if (field === 'original_contract_value') {
+            budgetUpdates.original_contract_value = financial.amount;
+            budgetUpdates.revised_contract_value = financial.amount;
+          }
+        }
+
+        if (Object.keys(projectUpdates).length > 0) {
+          await updateProjectMutation.mutateAsync(projectUpdates);
+        }
+        if (Object.keys(budgetUpdates).length > 0) {
+          await updateBudgetMutation.mutateAsync(budgetUpdates);
+        }
+      }
+
+      // Apply selected dates
+      if (selectedItems.dates.length > 0 && analysis?.actionable_dates) {
+        const projectUpdates = {};
+
+        for (const idx of selectedItems.dates) {
+          const dateItem = analysis.actionable_dates[idx];
+          const field = dateItem.target_field?.toLowerCase();
+          
+          if (field === 'start_date' || field === 'start date') {
+            projectUpdates.start_date = dateItem.date;
+          } else if (field === 'target_completion_date' || field === 'completion date' || field === 'end date') {
+            projectUpdates.target_completion_date = dateItem.date;
+          }
+        }
+
+        if (Object.keys(projectUpdates).length > 0) {
+          await updateProjectMutation.mutateAsync(projectUpdates);
+        }
+      }
+
+      // Apply selected change orders
+      if (selectedItems.changeOrders.length > 0 && analysis?.actionable_change_orders) {
+        for (const idx of selectedItems.changeOrders) {
+          const co = analysis.actionable_change_orders[idx];
+          await createChangeOrderMutation.mutateAsync({
+            project_id: projectId,
+            number: co.number || `CO-${Date.now().toString().slice(-6)}`,
+            reason: co.reason || 'Scope Change',
+            description: co.description || '',
+            cost_impact: co.cost_impact || 0,
+            schedule_impact_days: co.schedule_impact_days || 0,
+            status: 'Pending',
+            notes: `Extracted from document: ${document.name}`
+          });
+        }
+      }
+
+      // Clear selections after successful apply
+      setSelectedItems({ tasks: [], financials: [], dates: [], changeOrders: [] });
+      
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      console.error('Error applying data:', err);
+      setError('Failed to apply some data. Please try again.');
+    } finally {
+      setApplyingData(false);
     }
   };
 
@@ -396,13 +442,11 @@ Respond in JSON:
     }
   };
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'High': return 'bg-red-100 text-red-800';
-      case 'Medium': return 'bg-orange-100 text-orange-800';
-      case 'Low': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const getTotalSelectedCount = () => {
+    return selectedItems.tasks.length + 
+           selectedItems.financials.length + 
+           selectedItems.dates.length + 
+           selectedItems.changeOrders.length;
   };
 
   return (
@@ -418,7 +462,7 @@ Respond in JSON:
               <div>
                 <CardTitle className="text-xl">AI Document Analysis</CardTitle>
                 <p className="text-sm text-gray-600 mt-1">
-                  Smart categorization, information extraction & relationship discovery
+                  Extract schedule, financial data & more - then accept or reject
                 </p>
               </div>
             </div>
@@ -463,25 +507,25 @@ Respond in JSON:
             <Brain className="w-16 h-16 mx-auto mb-4 text-indigo-600" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">AI-Powered Document Intelligence</h3>
             <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
-              Get instant AI analysis with automatic categorization, key information extraction, 
-              intelligent tagging, and relationship discovery across your project documents.
+              Extract actionable data from contracts, proposals, and schedules. 
+              Review and selectively import into your project.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto text-sm">
               <div className="p-4 bg-indigo-50 rounded-lg">
-                <FileText className="w-6 h-6 mx-auto mb-2 text-indigo-600" />
-                <p className="font-medium text-indigo-900">Smart Categories</p>
-              </div>
-              <div className="p-4 bg-purple-50 rounded-lg">
-                <Tag className="w-6 h-6 mx-auto mb-2 text-purple-600" />
-                <p className="font-medium text-purple-900">Auto-Tagging</p>
-              </div>
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <DollarSign className="w-6 h-6 mx-auto mb-2 text-blue-600" />
-                <p className="font-medium text-blue-900">Extract Data</p>
+                <CalendarPlus className="w-6 h-6 mx-auto mb-2 text-indigo-600" />
+                <p className="font-medium text-indigo-900">Schedule Tasks</p>
               </div>
               <div className="p-4 bg-green-50 rounded-lg">
-                <LinkIcon className="w-6 h-6 mx-auto mb-2 text-green-600" />
-                <p className="font-medium text-green-900">Find Links</p>
+                <DollarSign className="w-6 h-6 mx-auto mb-2 text-green-600" />
+                <p className="font-medium text-green-900">Financials</p>
+              </div>
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <Calendar className="w-6 h-6 mx-auto mb-2 text-blue-600" />
+                <p className="font-medium text-blue-900">Project Dates</p>
+              </div>
+              <div className="p-4 bg-orange-50 rounded-lg">
+                <Receipt className="w-6 h-6 mx-auto mb-2 text-orange-600" />
+                <p className="font-medium text-orange-900">Change Orders</p>
               </div>
             </div>
           </CardContent>
@@ -494,7 +538,7 @@ Respond in JSON:
             <Loader2 className="w-16 h-16 mx-auto mb-4 text-indigo-600 animate-spin" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Analyzing Document...</h3>
             <p className="text-gray-600">
-              Reading content, extracting information, identifying relationships, and generating insights...
+              Extracting schedule, financial data, dates, and more...
             </p>
           </CardContent>
         </Card>
@@ -502,6 +546,51 @@ Respond in JSON:
 
       {analysis && (
         <>
+          {/* Action Bar - Shows when items are selected */}
+          {getTotalSelectedCount() > 0 && (
+            <Card className="bg-green-50 border-green-300 sticky top-4 z-10">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FileCheck className="w-5 h-5 text-green-600" />
+                    <span className="font-medium text-green-900">
+                      {getTotalSelectedCount()} item(s) selected for import
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedItems({ tasks: [], financials: [], dates: [], changeOrders: [] })}
+                      className="border-green-300 text-green-700"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Clear All
+                    </Button>
+                    <Button
+                      onClick={applySelectedData}
+                      disabled={applyingData}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      size="sm"
+                    >
+                      {applyingData ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Applying...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 mr-2" />
+                          Apply Selected Data
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Categorization */}
           {analysis.categorization && (
             <Card className="bg-white border-gray-200">
@@ -545,131 +634,344 @@ Respond in JSON:
             </Card>
           )}
 
-          {/* Key Information */}
-          {analysis.key_information && (
+          {/* Actionable Tasks */}
+          {analysis.actionable_tasks?.length > 0 && (
             <Card className="bg-white border-gray-200">
               <CardHeader className="border-b border-gray-200">
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-purple-600" />
-                  Extracted Information
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <CalendarPlus className="w-5 h-5 text-blue-600" />
+                    Extracted Schedule Tasks
+                    <Badge variant="outline" className="ml-2">
+                      {analysis.actionable_tasks.length} found
+                    </Badge>
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => selectAllInCategory('tasks', analysis.actionable_tasks)}
+                      className="text-xs"
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deselectAllInCategory('tasks')}
+                      className="text-xs"
+                    >
+                      Deselect All
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                {/* Dates */}
-                {analysis.key_information.dates?.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Calendar className="w-5 h-5 text-blue-600" />
-                      <h4 className="font-semibold text-gray-900">Important Dates</h4>
-                    </div>
-                    <div className="grid md:grid-cols-2 gap-3">
-                      {analysis.key_information.dates.map((date, idx) => (
-                        <div key={idx} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <p className="text-sm font-medium text-blue-900">{date.type}</p>
-                          <p className="text-lg font-semibold text-blue-800">
-                            {formatDate(date.date)}
-                          </p>
-                          <p className="text-xs text-blue-700 mt-1">{date.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Financial Figures */}
-                {analysis.key_information.financial_figures?.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <DollarSign className="w-5 h-5 text-green-600" />
-                      <h4 className="font-semibold text-gray-900">Financial Figures</h4>
-                    </div>
-                    <div className="grid md:grid-cols-2 gap-3">
-                      {analysis.key_information.financial_figures.map((figure, idx) => (
-                        <div key={idx} className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                          <p className="text-sm font-medium text-green-900">{figure.type}</p>
-                          <p className="text-lg font-semibold text-green-800">
-                            {formatCurrency(figure.amount)}
-                          </p>
-                          <p className="text-xs text-green-700 mt-1">{figure.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Parties */}
-                {analysis.key_information.parties?.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Users className="w-5 h-5 text-purple-600" />
-                      <h4 className="font-semibold text-gray-900">Parties Involved</h4>
-                    </div>
-                    <div className="space-y-2">
-                      {analysis.key_information.parties.map((party, idx) => (
-                        <div key={idx} className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium text-purple-900">{party.name}</p>
-                            <Badge variant="outline" className="text-xs">
-                              {party.role}
+              <CardContent className="p-4">
+                <div className="space-y-3">
+                  {analysis.actionable_tasks.map((task, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`p-4 rounded-lg border transition-colors cursor-pointer ${
+                        selectedItems.tasks.includes(idx) 
+                          ? 'bg-blue-50 border-blue-300' 
+                          : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => toggleItemSelection('tasks', idx)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Checkbox 
+                          checked={selectedItems.tasks.includes(idx)}
+                          onCheckedChange={() => toggleItemSelection('tasks', idx)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="font-medium text-gray-900">{task.name}</p>
+                            <Badge className={getConfidenceColor(task.confidence)}>
+                              {task.confidence}
                             </Badge>
                           </div>
-                          <p className="text-sm text-purple-700">{party.context}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Key Topics */}
-                {analysis.key_information.key_topics?.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">Key Topics</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {analysis.key_information.key_topics.map((topic, idx) => (
-                        <Badge key={idx} variant="outline" className="bg-gray-50">
-                          {topic}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Action Items */}
-                {analysis.key_information.action_items?.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">Action Items</h4>
-                    <ul className="space-y-2">
-                      {analysis.key_information.action_items.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
-                          <CheckCircle2 className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Deadlines */}
-                {analysis.key_information.deadlines?.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">Deadlines</h4>
-                    <div className="space-y-2">
-                      {analysis.key_information.deadlines.map((deadline, idx) => (
-                        <div key={idx} className="p-3 bg-orange-50 border border-orange-200 rounded-lg flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-orange-900">{deadline.description}</p>
-                            <p className="text-sm text-orange-700">
-                              Due: {formatDate(deadline.date)}
-                            </p>
+                          {task.description && (
+                            <p className="text-sm text-gray-600 mb-2">{task.description}</p>
+                          )}
+                          <div className="flex flex-wrap gap-4 text-xs text-gray-600">
+                            {task.start_date && (
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                Start: {formatDate(task.start_date)}
+                              </span>
+                            )}
+                            {task.finish_date && (
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                End: {formatDate(task.finish_date)}
+                              </span>
+                            )}
+                            {task.duration_days && (
+                              <span>{task.duration_days} days</span>
+                            )}
+                            {task.trade && (
+                              <Badge variant="outline" className="text-xs">{task.trade}</Badge>
+                            )}
+                            {task.responsible_party && (
+                              <span className="flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {task.responsible_party}
+                              </span>
+                            )}
                           </div>
-                          <Badge className={getPriorityColor(deadline.priority)}>
-                            {deadline.priority}
-                          </Badge>
                         </div>
-                      ))}
+                      </div>
                     </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Actionable Financials */}
+          {analysis.actionable_financials?.length > 0 && (
+            <Card className="bg-white border-gray-200">
+              <CardHeader className="border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-green-600" />
+                    Extracted Financial Data
+                    <Badge variant="outline" className="ml-2">
+                      {analysis.actionable_financials.length} found
+                    </Badge>
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => selectAllInCategory('financials', analysis.actionable_financials)}
+                      className="text-xs"
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deselectAllInCategory('financials')}
+                      className="text-xs"
+                    >
+                      Deselect All
+                    </Button>
                   </div>
-                )}
+                </div>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="space-y-3">
+                  {analysis.actionable_financials.map((financial, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`p-4 rounded-lg border transition-colors cursor-pointer ${
+                        selectedItems.financials.includes(idx) 
+                          ? 'bg-green-50 border-green-300' 
+                          : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => toggleItemSelection('financials', idx)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Checkbox 
+                          checked={selectedItems.financials.includes(idx)}
+                          onCheckedChange={() => toggleItemSelection('financials', idx)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <p className="font-medium text-gray-900">{financial.type}</p>
+                              <p className="text-2xl font-bold text-green-700">
+                                {formatCurrency(financial.amount)}
+                              </p>
+                            </div>
+                            <Badge className={getConfidenceColor(financial.confidence)}>
+                              {financial.confidence}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <ArrowRight className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-600">Will update:</span>
+                            <Badge variant="outline">{financial.target_field}</Badge>
+                          </div>
+                          {financial.description && (
+                            <p className="text-sm text-gray-600 mt-2">{financial.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Actionable Dates */}
+          {analysis.actionable_dates?.length > 0 && (
+            <Card className="bg-white border-gray-200">
+              <CardHeader className="border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-blue-600" />
+                    Extracted Project Dates
+                    <Badge variant="outline" className="ml-2">
+                      {analysis.actionable_dates.length} found
+                    </Badge>
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => selectAllInCategory('dates', analysis.actionable_dates)}
+                      className="text-xs"
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deselectAllInCategory('dates')}
+                      className="text-xs"
+                    >
+                      Deselect All
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="space-y-3">
+                  {analysis.actionable_dates.map((dateItem, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`p-4 rounded-lg border transition-colors cursor-pointer ${
+                        selectedItems.dates.includes(idx) 
+                          ? 'bg-blue-50 border-blue-300' 
+                          : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => toggleItemSelection('dates', idx)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Checkbox 
+                          checked={selectedItems.dates.includes(idx)}
+                          onCheckedChange={() => toggleItemSelection('dates', idx)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <p className="font-medium text-gray-900">{dateItem.type}</p>
+                              <p className="text-xl font-bold text-blue-700">
+                                {formatDate(dateItem.date)}
+                              </p>
+                            </div>
+                            <Badge className={getConfidenceColor(dateItem.confidence)}>
+                              {dateItem.confidence}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <ArrowRight className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-600">Will update:</span>
+                            <Badge variant="outline">{dateItem.target_field}</Badge>
+                          </div>
+                          {dateItem.description && (
+                            <p className="text-sm text-gray-600 mt-2">{dateItem.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Actionable Change Orders */}
+          {analysis.actionable_change_orders?.length > 0 && (
+            <Card className="bg-white border-gray-200">
+              <CardHeader className="border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Receipt className="w-5 h-5 text-orange-600" />
+                    Extracted Change Orders
+                    <Badge variant="outline" className="ml-2">
+                      {analysis.actionable_change_orders.length} found
+                    </Badge>
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => selectAllInCategory('changeOrders', analysis.actionable_change_orders)}
+                      className="text-xs"
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deselectAllInCategory('changeOrders')}
+                      className="text-xs"
+                    >
+                      Deselect All
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="space-y-3">
+                  {analysis.actionable_change_orders.map((co, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`p-4 rounded-lg border transition-colors cursor-pointer ${
+                        selectedItems.changeOrders.includes(idx) 
+                          ? 'bg-orange-50 border-orange-300' 
+                          : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => toggleItemSelection('changeOrders', idx)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Checkbox 
+                          checked={selectedItems.changeOrders.includes(idx)}
+                          onCheckedChange={() => toggleItemSelection('changeOrders', idx)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {co.number ? `CO #${co.number}` : 'Change Order'}: {co.reason}
+                              </p>
+                            </div>
+                            <Badge className={getConfidenceColor(co.confidence)}>
+                              {co.confidence}
+                            </Badge>
+                          </div>
+                          {co.description && (
+                            <p className="text-sm text-gray-600 mb-2">{co.description}</p>
+                          )}
+                          <div className="flex flex-wrap gap-4 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-600">Cost Impact:</span>
+                              <span className={`font-semibold ${co.cost_impact >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                {co.cost_impact >= 0 ? '+' : ''}{formatCurrency(co.cost_impact || 0)}
+                              </span>
+                            </div>
+                            {co.schedule_impact_days !== null && co.schedule_impact_days !== undefined && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-600">Schedule Impact:</span>
+                                <span className={`font-semibold ${co.schedule_impact_days > 0 ? 'text-orange-700' : 'text-gray-700'}`}>
+                                  {co.schedule_impact_days > 0 ? '+' : ''}{co.schedule_impact_days} days
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -723,96 +1025,12 @@ Respond in JSON:
                   {analysis.tags.priority && (
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Priority:</p>
-                      <Badge className={getPriorityColor(analysis.tags.priority)}>
+                      <Badge className={getConfidenceColor(analysis.tags.priority)}>
                         {analysis.tags.priority}
                       </Badge>
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Relationships */}
-          {analysis.relationships && (
-            <Card className="bg-white border-gray-200">
-              <CardHeader className="border-b border-gray-200">
-                <CardTitle className="flex items-center gap-2">
-                  <LinkIcon className="w-5 h-5 text-green-600" />
-                  Document Relationships
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                {/* Related Documents */}
-                {analysis.relationships.related_documents?.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">Related Documents</h4>
-                    <div className="space-y-2">
-                      {analysis.relationships.related_documents.map((rel, idx) => {
-                        const relatedDoc = allDocuments.find(d => d.id === rel.document_id);
-                        return (
-                          <div key={idx} className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-green-600" />
-                                <p className="font-medium text-green-900">{rel.document_name}</p>
-                              </div>
-                              <Badge variant="outline" className="text-xs">
-                                {rel.relationship_type}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-green-700">{rel.description}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Tasks */}
-                {analysis.relationships.tasks?.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">Related Tasks</h4>
-                    <div className="space-y-2">
-                      {analysis.relationships.tasks.map((task, idx) => (
-                        <div key={idx} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <p className="font-medium text-blue-900 mb-1">{task.description}</p>
-                          <p className="text-sm text-blue-700">{task.reasoning}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Change Orders */}
-                {analysis.relationships.change_orders?.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">Related Change Orders</h4>
-                    <div className="space-y-2">
-                      {analysis.relationships.change_orders.map((co, idx) => (
-                        <div key={idx} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                          <p className="font-medium text-orange-900 mb-1">{co.description}</p>
-                          <p className="text-sm text-orange-700">{co.reasoning}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Daily Logs */}
-                {analysis.relationships.daily_logs?.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">Related Daily Log Topics</h4>
-                    <div className="space-y-2">
-                      {analysis.relationships.daily_logs.map((log, idx) => (
-                        <div key={idx} className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                          <p className="font-medium text-purple-900 mb-1">{log.description}</p>
-                          <p className="text-sm text-purple-700">{log.reasoning}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           )}
