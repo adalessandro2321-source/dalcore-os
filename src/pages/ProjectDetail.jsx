@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -33,6 +32,7 @@ import ProjectSchedule from "../components/schedule/ProjectSchedule";
 import MaterialCosts from "../components/project/MaterialCosts";
 import DailyLogRiskSuggestions from "../components/project/DailyLogRiskSuggestions";
 import ProjectAIInsights from "../components/project/ProjectAIInsights";
+import BudgetModule from "../components/budget/BudgetModule";
 import { formatDate, formatCurrency } from "../components/shared/DateFormatter";
 
 export default function ProjectDetail() {
@@ -341,6 +341,10 @@ export default function ProjectDetail() {
             <DollarSign className="w-4 h-4 mr-2" />
             Financials & CTC
           </TabsTrigger>
+          <TabsTrigger value="budget" className="data-[state=active]:bg-[#1B4D3E] data-[state=active]:text-white">
+            <TrendingUp className="w-4 h-4 mr-2" />
+            Budget Tracking
+          </TabsTrigger>
           <TabsTrigger value="ai-insights" className="data-[state=active]:bg-[#1B4D3E] data-[state=active]:text-white">
             <Brain className="w-4 h-4 mr-2" />
             AI Insights
@@ -369,6 +373,10 @@ export default function ProjectDetail() {
 
         <TabsContent value="financials">
           <ProjectFinancials projectId={projectId} project={project} />
+        </TabsContent>
+
+        <TabsContent value="budget">
+          <BudgetModule projectId={projectId} project={project} />
         </TabsContent>
 
         <TabsContent value="ai-insights">

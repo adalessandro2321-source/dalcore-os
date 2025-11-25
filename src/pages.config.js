@@ -28,7 +28,7 @@ import BillsInvoices from './pages/BillsInvoices';
 import CreateEstimate from './pages/CreateEstimate';
 import Home from './pages/Home';
 import ClientPortal from './pages/ClientPortal';
-import Layout from './Layout.jsx';
+import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
@@ -67,5 +67,5 @@ export const PAGES = {
 export const pagesConfig = {
     mainPage: "Home",
     Pages: PAGES,
-    Layout: Layout,
+    Layout: __Layout,
 };
