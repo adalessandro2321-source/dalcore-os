@@ -25,11 +25,17 @@ export default function EditProjectModal({ project, onClose, onSuccess }) {
     percent_complete: project.percent_complete || 0,
     project_manager: project.project_manager || '',
     superintendent: project.superintendent || '',
+    estimate_id: project.estimate_id || '',
   });
 
   const { data: companies = [] } = useQuery({
     queryKey: ['companies'],
     queryFn: () => base44.entities.Company.list(),
+  });
+
+  const { data: estimates = [] } = useQuery({
+    queryKey: ['allEstimates'],
+    queryFn: () => base44.entities.Estimate.list('-created_date'),
   });
 
   const updateMutation = useMutation({
@@ -90,6 +96,29 @@ export default function EditProjectModal({ project, onClose, onSuccess }) {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div>
+            <Label>Linked Estimate (Baseline)</Label>
+            <Select
+              value={formData.estimate_id || 'none'}
+              onValueChange={(value) => setFormData({...formData, estimate_id: value === 'none' ? '' : value})}
+            >
+              <SelectTrigger className="bg-white border-gray-300 text-gray-900">
+                <SelectValue placeholder="Select estimate" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border-gray-300">
+                <SelectItem value="none">No estimate linked</SelectItem>
+                {estimates.map((est) => (
+                  <SelectItem key={est.id} value={est.id}>
+                    {est.name} - ${(est.estimated_selling_price || 0).toLocaleString()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500 mt-1">
+              Link an estimate to use as the cost baseline for budget tracking
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

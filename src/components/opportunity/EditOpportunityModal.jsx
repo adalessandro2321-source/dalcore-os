@@ -22,6 +22,7 @@ export default function EditOpportunityModal({ opportunity, onClose, onSuccess }
     assigned_to: opportunity.assigned_to || '',
     description: opportunity.description || '',
     notes: opportunity.notes || '',
+    estimate_id: opportunity.estimate_id || '',
   });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -29,6 +30,15 @@ export default function EditOpportunityModal({ opportunity, onClose, onSuccess }
   const { data: companies = [] } = useQuery({
     queryKey: ['companies'],
     queryFn: () => base44.entities.Company.list(),
+  });
+
+  const { data: estimates = [] } = useQuery({
+    queryKey: ['estimates', opportunity.id],
+    queryFn: async () => {
+      const allEstimates = await base44.entities.Estimate.list('-created_date');
+      // Return estimates linked to this opportunity OR unlinked estimates
+      return allEstimates.filter(e => e.opportunity_id === opportunity.id || !e.opportunity_id);
+    },
   });
 
   const updateMutation = useMutation({
@@ -220,6 +230,29 @@ export default function EditOpportunityModal({ opportunity, onClose, onSuccess }
                 className="bg-white border-gray-300 text-gray-900"
               />
             </div>
+          </div>
+
+          <div>
+            <Label>Linked Estimate</Label>
+            <Select
+              value={formData.estimate_id || 'none'}
+              onValueChange={(value) => setFormData({...formData, estimate_id: value === 'none' ? '' : value})}
+            >
+              <SelectTrigger className="bg-white border-gray-300 text-gray-900">
+                <SelectValue placeholder="Select estimate" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border-gray-300">
+                <SelectItem value="none">No estimate linked</SelectItem>
+                {estimates.map((est) => (
+                  <SelectItem key={est.id} value={est.id}>
+                    {est.name} - ${(est.estimated_selling_price || 0).toLocaleString()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500 mt-1">
+              Link an existing estimate or create one from the Estimates tab
+            </p>
           </div>
 
           <div>
