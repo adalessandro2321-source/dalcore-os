@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -97,15 +96,17 @@ export default function CreateEstimate() {
     queryFn: () => base44.auth.me(),
   });
 
-  const { data: opportunity } = useQuery({
-    queryKey: ['opportunity', opportunityId],
-    queryFn: async () => {
-      if (!opportunityId) return null;
-      const opps = await base44.entities.Opportunity.list();
-      return opps.find(o => o.id === opportunityId);
-    },
-    enabled: !!opportunityId,
+  const { data: opportunities = [] } = useQuery({
+    queryKey: ['opportunities'],
+    queryFn: () => base44.entities.Opportunity.list(),
   });
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => base44.entities.Project.list(),
+  });
+
+  const opportunity = opportunities.find(o => o.id === (opportunityId || formData.opportunity_id));
 
   const { data: existingEstimate } = useQuery({
     queryKey: ['estimate', estimateId],
@@ -144,19 +145,34 @@ export default function CreateEstimate() {
   }, [existingEstimate, opportunityId]);
 
   const createMutation = useMutation({
-    mutationFn: (data) => {
+    mutationFn: async (data) => {
       console.log('Saving estimate with data:', data);
+      let savedEstimate;
       if (estimateId) {
-        return base44.entities.Estimate.update(estimateId, data);
+        savedEstimate = await base44.entities.Estimate.update(estimateId, data);
+      } else {
+        savedEstimate = await base44.entities.Estimate.create(data);
       }
-      return base44.entities.Estimate.create(data);
+      
+      // If linking to a project, update the project's estimate_id
+      if (data.project_id) {
+        await base44.entities.Project.update(data.project_id, {
+          estimate_id: savedEstimate.id
+        });
+      }
+      
+      return savedEstimate;
     },
     onSuccess: (estimate) => {
       console.log('Estimate saved successfully:', estimate);
       queryClient.invalidateQueries({ queryKey: ['estimates'] });
-      queryClient.invalidateQueries({ queryKey: ['estimates', opportunityId] }); // Invalidate opportunity-specific estimates
-      if (opportunityId) {
-        navigate(createPageUrl(`OpportunityDetail?id=${opportunityId}`));
+      queryClient.invalidateQueries({ queryKey: ['estimates', opportunityId] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      
+      if (formData.project_id) {
+        navigate(createPageUrl(`ProjectDetail?id=${formData.project_id}`));
+      } else if (opportunityId || formData.opportunity_id) {
+        navigate(createPageUrl(`OpportunityDetail?id=${opportunityId || formData.opportunity_id}`));
       } else {
         navigate(createPageUrl('Estimates'));
       }
@@ -341,6 +357,11 @@ export default function CreateEstimate() {
     };
     console.log('Data being saved:', dataToSave);
     createMutation.mutate(dataToSave);
+
+    // If linking to a project, update the project's estimate_id
+    if (formData.project_id && !estimateId) {
+      // Will be handled after estimate is created
+    }
   };
 
   const handleExportPDF = () => {
@@ -475,7 +496,7 @@ export default function CreateEstimate() {
     * {
       margin: 0;
       padding: 0;
-      box-sizing: border-sizing;
+      box-sizing: border-box;
     }
 
     body {
@@ -820,6 +841,73 @@ export default function CreateEstimate() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Link to Opportunity or Project */}
+              {!opportunityId && (
+                <div className="pt-4 border-t border-gray-300">
+                  <Label className="text-base font-semibold">Link to Record</Label>
+                  <p className="text-xs text-gray-600 mb-3">
+                    Optionally link this estimate to an opportunity or project
+                  </p>
+
+                  <div className="space-y-3">
+                    <div>
+                      <Label>Opportunity</Label>
+                      <Select
+                        value={formData.opportunity_id || "none"}
+                        onValueChange={(value) => setFormData({
+                          ...formData, 
+                          opportunity_id: value === "none" ? "" : value,
+                          project_id: value === "none" ? formData.project_id : "" // Clear project if opportunity selected
+                        })}
+                      >
+                        <SelectTrigger className="bg-white border-gray-300">
+                          <SelectValue placeholder="Select opportunity" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border-gray-300 max-h-60">
+                          <SelectItem value="none">None</SelectItem>
+                          {opportunities
+                            .filter(o => o.stage !== 'Under Contract' && o.stage !== 'Lost')
+                            .map(opp => (
+                              <SelectItem key={opp.id} value={opp.id}>
+                                {opp.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Project</Label>
+                      <Select
+                        value={formData.project_id || "none"}
+                        onValueChange={(value) => setFormData({
+                          ...formData, 
+                          project_id: value === "none" ? "" : value,
+                          opportunity_id: value === "none" ? formData.opportunity_id : "" // Clear opportunity if project selected
+                        })}
+                      >
+                        <SelectTrigger className="bg-white border-gray-300">
+                          <SelectValue placeholder="Select project" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border-gray-300 max-h-60">
+                          <SelectItem value="none">None</SelectItem>
+                          {projects
+                            .filter(p => p.status !== 'Closed' && p.status !== 'Completed')
+                            .map(proj => (
+                              <SelectItem key={proj.id} value={proj.id}>
+                                {proj.number ? `${proj.number} - ` : ''}{proj.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Linking to a project sets it as the baseline estimate
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <Label>Estimate Notes</Label>
