@@ -935,8 +935,8 @@ export default function CreateEstimate() {
                 <Input
                   type="number"
                   step="0.01"
-                  value={formData.labor_rate}
-                  onChange={(e) => setFormData({...formData, labor_rate: parseFloat(e.target.value) || 0})}
+                  value={formData.labor_rate ?? 0}
+                  onChange={(e) => setFormData({...formData, labor_rate: e.target.value === '' ? 0 : parseFloat(e.target.value)})}
                   className="bg-white border-gray-300"
                 />
               </div>
@@ -946,8 +946,8 @@ export default function CreateEstimate() {
                 <Input
                   type="number"
                   step="0.1"
-                  value={formData.labor_hours}
-                  onChange={(e) => setFormData({...formData, labor_hours: parseFloat(e.target.value) || 0})}
+                  value={formData.labor_hours ?? 0}
+                  onChange={(e) => setFormData({...formData, labor_hours: e.target.value === '' ? 0 : parseFloat(e.target.value)})}
                   className="bg-white border-gray-300"
                   placeholder="0"
                 />
@@ -961,8 +961,8 @@ export default function CreateEstimate() {
                 <Input
                   type="number"
                   step="0.01"
-                  value={formData.administration_rate}
-                  onChange={(e) => setFormData({...formData, administration_rate: parseFloat(e.target.value) || 0})}
+                  value={formData.administration_rate ?? 0}
+                  onChange={(e) => setFormData({...formData, administration_rate: e.target.value === '' ? 0 : parseFloat(e.target.value)})}
                   className="bg-white border-gray-300"
                 />
               </div>
@@ -972,8 +972,8 @@ export default function CreateEstimate() {
                 <Input
                   type="number"
                   step="0.01"
-                  value={formData.markup_percent}
-                  onChange={(e) => setFormData({...formData, markup_percent: parseFloat(e.target.value) || 0})}
+                  value={formData.markup_percent ?? 0}
+                  onChange={(e) => setFormData({...formData, markup_percent: e.target.value === '' ? 0 : parseFloat(e.target.value)})}
                   className="bg-white border-gray-300"
                 />
               </div>
@@ -983,8 +983,8 @@ export default function CreateEstimate() {
                 <Input
                   type="number"
                   step="0.01"
-                  value={formData.sales_tax_rate}
-                  onChange={(e) => setFormData({...formData, sales_tax_rate: parseFloat(e.target.value) || 0})}
+                  value={formData.sales_tax_rate ?? 0}
+                  onChange={(e) => setFormData({...formData, sales_tax_rate: e.target.value === '' ? 0 : parseFloat(e.target.value)})}
                   className="bg-white border-gray-300"
                 />
               </div>
@@ -994,8 +994,8 @@ export default function CreateEstimate() {
                 <Input
                   type="number"
                   step="0.01"
-                  value={formData.general_production_cost_factor}
-                  onChange={(e) => setFormData({...formData, general_production_cost_factor: parseFloat(e.target.value) || 1})}
+                  value={formData.general_production_cost_factor ?? 1}
+                  onChange={(e) => setFormData({...formData, general_production_cost_factor: e.target.value === '' ? 1 : parseFloat(e.target.value)})}
                   className="bg-white border-gray-300"
                 />
                 <p className="text-xs text-gray-600 mt-1">Typically 1.0 for no additional burden</p>
@@ -1006,8 +1006,8 @@ export default function CreateEstimate() {
                 <Input
                   type="number"
                   step="0.1"
-                  value={formData.admin_hours_per_8_labor_hours}
-                  onChange={(e) => setFormData({...formData, admin_hours_per_8_labor_hours: parseFloat(e.target.value) || 0})}
+                  value={formData.admin_hours_per_8_labor_hours ?? 0}
+                  onChange={(e) => setFormData({...formData, admin_hours_per_8_labor_hours: e.target.value === '' ? 0 : parseFloat(e.target.value)})}
                   className="bg-white border-gray-300"
                 />
                 <div className="text-xs text-gray-600 mt-2 space-y-1">
@@ -1032,8 +1032,8 @@ export default function CreateEstimate() {
                     <Input
                       type="number"
                       step="0.01"
-                      value={formData.permit_cost}
-                      onChange={(e) => setFormData({...formData, permit_cost: parseFloat(e.target.value) || 0})}
+                      value={formData.permit_cost ?? 0}
+                      onChange={(e) => setFormData({...formData, permit_cost: e.target.value === '' ? 0 : parseFloat(e.target.value)})}
                       className="bg-white border-gray-300"
                     />
                   </div>
