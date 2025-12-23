@@ -441,19 +441,20 @@ export default function CreateEstimate() {
 
     // Subcontractor Line Items - with floated general labor
     formData.subcontractor_line_items.forEach((sub, index) => {
-      if ((sub.sub_cost || 0) > 0) {
-        const baseCost = subItemBaseCosts[index];
+      const baseCost = subItemBaseCosts[index];
 
-        // Calculate this item's share of general labor costs
-        let shareOfFloatedCosts = 0;
-        if (totalBaseCostForFloatingDistribution > 0) {
-          shareOfFloatedCosts = (baseCost / totalBaseCostForFloatingDistribution) * totalGeneralLaborAndAdminCostsToFloat;
-        }
+      // Calculate this item's share of general labor costs
+      let shareOfFloatedCosts = 0;
+      if (totalBaseCostForFloatingDistribution > 0) {
+        shareOfFloatedCosts = (baseCost / totalBaseCostForFloatingDistribution) * totalGeneralLaborAndAdminCostsToFloat;
+      }
 
-        // Add the share to the base cost, then apply markup
-        const costIncludingFloated = baseCost + shareOfFloatedCosts;
-        const fullyLoadedPrice = costIncludingFloated * markupFactor;
+      // Add the share to the base cost, then apply markup
+      const costIncludingFloated = baseCost + shareOfFloatedCosts;
+      const fullyLoadedPrice = costIncludingFloated * markupFactor;
 
+      // Include any subcontractor with a cost > 0 (includes sub_cost, labor hours, or floated costs)
+      if (fullyLoadedPrice > 0) {
         lineItems.push({
           task: sub.name,
           cost: fullyLoadedPrice,
