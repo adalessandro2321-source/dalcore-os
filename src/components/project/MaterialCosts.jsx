@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -18,7 +17,11 @@ import {
   Edit,
   Image as ImageIcon,
   Filter,
-  AlertCircle // Added for data quality warning
+  AlertCircle,
+  CreditCard,
+  Loader2,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import {
   Dialog,
@@ -47,12 +50,16 @@ const CATEGORY_COLORS = {
 
 export default function MaterialCosts({ projectId, project }) {
   const [showAddModal, setShowAddModal] = React.useState(false);
+  const [showStatementModal, setShowStatementModal] = React.useState(false);
   const [editingId, setEditingId] = React.useState(null);
   const [editData, setEditData] = React.useState({});
   const [uploadingReceipt, setUploadingReceipt] = React.useState(null);
   const [filterCategory, setFilterCategory] = React.useState('all');
   const [filterApproved, setFilterApproved] = React.useState('all');
   const [dateRange, setDateRange] = React.useState({ start: '', end: '' });
+  const [extractingStatement, setExtractingStatement] = React.useState(false);
+  const [extractedTransactions, setExtractedTransactions] = React.useState([]);
+  const [expandedTransaction, setExpandedTransaction] = React.useState(null);
   const queryClient = useQueryClient();
 
   const { data: currentUser } = useQuery({
@@ -74,6 +81,11 @@ export default function MaterialCosts({ projectId, project }) {
     queryKey: ['materialCosts', projectId],
     queryFn: () => base44.entities.MaterialCost.filter({ project_id: projectId }, '-date'),
     enabled: !!projectId,
+  });
+
+  const { data: allProjects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => base44.entities.Project.list(),
   });
 
   // Add data quality check for bills without project_id
@@ -294,6 +306,92 @@ export default function MaterialCosts({ projectId, project }) {
     queryClient.invalidateQueries({ queryKey: ['projects'] }); // Invalidate projects to update overall budget
   };
 
+  const handleStatementUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setExtractingStatement(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `Extract all transactions from this credit card statement. For each transaction, identify:
+- Date (in YYYY-MM-DD format)
+- Merchant/vendor name
+- Amount (as a positive number)
+- Description/memo if available
+- Auto-categorize into one of these categories: Material, Labor, Tool, Fuel, Equipment Rental, Dump Fee, Permit, Administration, Misc
+
+Return a JSON array of transactions.`,
+        file_urls: [file_url],
+        response_json_schema: {
+          type: "object",
+          properties: {
+            transactions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  date: { type: "string" },
+                  transaction: { type: "string" },
+                  amount: { type: "number" },
+                  item: { type: "string" },
+                  description: { type: "string" },
+                  notes: { type: "string" }
+                },
+                required: ["date", "transaction", "amount", "item"]
+              }
+            }
+          },
+          required: ["transactions"]
+        }
+      });
+
+      setExtractedTransactions(result.transactions.map((t, index) => ({
+        ...t,
+        tempId: `temp-${index}`,
+        project_id: projectId,
+        approved: false
+      })));
+      setShowStatementModal(true);
+    } catch (error) {
+      console.error('Statement extraction error:', error);
+      alert('Failed to extract transactions from statement. Please try again.');
+    }
+    setExtractingStatement(false);
+  };
+
+  const handleUpdateExtractedTransaction = (tempId, field, value) => {
+    setExtractedTransactions(prev =>
+      prev.map(t => t.tempId === tempId ? { ...t, [field]: value } : t)
+    );
+  };
+
+  const handleRemoveExtractedTransaction = (tempId) => {
+    setExtractedTransactions(prev => prev.filter(t => t.tempId !== tempId));
+  };
+
+  const handleImportExtractedTransactions = async () => {
+    const costsToCreate = extractedTransactions.map(t => ({
+      project_id: t.project_id,
+      date: new Date(t.date).toISOString(),
+      transaction: t.transaction,
+      amount: parseFloat(t.amount) || 0,
+      item: t.item,
+      description: t.description || '',
+      notes: t.notes || '',
+      entered_by: currentUser?.email || '',
+      approved: t.approved || false
+    }));
+
+    await base44.entities.MaterialCost.bulkCreate(costsToCreate);
+    queryClient.invalidateQueries({ queryKey: ['materialCosts', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['projectBudget', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+    setShowStatementModal(false);
+    setExtractedTransactions([]);
+  };
+
   // Apply filters
   const filteredCosts = materialCosts.filter(cost => {
     if (filterCategory !== 'all' && cost.item !== filterCategory) return false;
@@ -403,6 +501,35 @@ export default function MaterialCosts({ projectId, project }) {
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
+
+          <input
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={handleStatementUpload}
+            className="hidden"
+            id="statement-upload"
+            disabled={extractingStatement}
+          />
+          <label htmlFor="statement-upload">
+            <Button
+              as="span"
+              variant="outline"
+              className="border-[#2A6B5A] text-[#1B4D3E] hover:bg-[#E8F4F1]"
+              disabled={extractingStatement}
+            >
+              {extractingStatement ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Extracting...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Upload Statement
+                </>
+              )}
+            </Button>
+          </label>
         </div>
 
         {/* Filters */}
@@ -765,6 +892,192 @@ export default function MaterialCosts({ projectId, project }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Statement Upload Modal */}
+      <Dialog open={showStatementModal} onOpenChange={setShowStatementModal}>
+        <DialogContent className="bg-[#F5F4F3] border-[#C9C8AF] text-[#181E18] max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Review Extracted Transactions</DialogTitle>
+          </DialogHeader>
+          
+          {extractedTransactions.length === 0 ? (
+            <div className="p-8 text-center text-gray-600">
+              No transactions extracted. Please try again.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-[#5A7765]">
+                Review and edit the auto-categorized transactions below. You can change categories, projects, amounts, or remove items before importing.
+              </p>
+
+              <div className="space-y-2">
+                {extractedTransactions.map((transaction) => (
+                  <Card key={transaction.tempId} className="border-[#C9C8AF]">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div 
+                          className="flex-1 cursor-pointer"
+                          onClick={() => setExpandedTransaction(
+                            expandedTransaction === transaction.tempId ? null : transaction.tempId
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div>
+                              {expandedTransaction === transaction.tempId ? (
+                                <ChevronUp className="w-5 h-5 text-[#5A7765]" />
+                              ) : (
+                                <ChevronDown className="w-5 h-5 text-[#5A7765]" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-1">
+                                <p className="font-medium text-[#181E18]">{transaction.transaction}</p>
+                                <span 
+                                  className="inline-flex items-center px-2 py-1 rounded text-xs font-medium"
+                                  style={{ 
+                                    backgroundColor: `${CATEGORY_COLORS[transaction.item]}20`,
+                                    color: CATEGORY_COLORS[transaction.item]
+                                  }}
+                                >
+                                  {transaction.item}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-[#5A7765]">
+                                <span>{formatDate(transaction.date)}</span>
+                                <span className="font-semibold text-[#181E18]">{formatCurrency(transaction.amount)}</span>
+                                {transaction.description && (
+                                  <span className="text-xs">{transaction.description}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveExtractedTransaction(transaction.tempId)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+
+                      {expandedTransaction === transaction.tempId && (
+                        <div className="mt-4 pt-4 border-t border-[#C9C8AF] grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs font-medium text-[#5A7765] mb-1 block">Date</label>
+                            <Input
+                              type="date"
+                              value={transaction.date}
+                              onChange={(e) => handleUpdateExtractedTransaction(transaction.tempId, 'date', e.target.value)}
+                              className="bg-white border-[#C9C8AF] text-[#181E18] h-8 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-[#5A7765] mb-1 block">Amount</label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={transaction.amount}
+                              onChange={(e) => handleUpdateExtractedTransaction(transaction.tempId, 'amount', parseFloat(e.target.value))}
+                              className="bg-white border-[#C9C8AF] text-[#181E18] h-8 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-[#5A7765] mb-1 block">Vendor/Transaction</label>
+                            <Input
+                              value={transaction.transaction}
+                              onChange={(e) => handleUpdateExtractedTransaction(transaction.tempId, 'transaction', e.target.value)}
+                              className="bg-white border-[#C9C8AF] text-[#181E18] h-8 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-[#5A7765] mb-1 block">Category</label>
+                            <Select
+                              value={transaction.item}
+                              onValueChange={(value) => handleUpdateExtractedTransaction(transaction.tempId, 'item', value)}
+                            >
+                              <SelectTrigger className="bg-white border-[#C9C8AF] text-[#181E18] h-8 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {CATEGORIES.map(cat => (
+                                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-[#5A7765] mb-1 block">Project</label>
+                            <Select
+                              value={transaction.project_id}
+                              onValueChange={(value) => handleUpdateExtractedTransaction(transaction.tempId, 'project_id', value)}
+                            >
+                              <SelectTrigger className="bg-white border-[#C9C8AF] text-[#181E18] h-8 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {allProjects
+                                  .filter(p => p.status !== 'Closed' && p.status !== 'Completed')
+                                  .map(proj => (
+                                    <SelectItem key={proj.id} value={proj.id}>
+                                      {proj.number ? `${proj.number} - ` : ''}{proj.name}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-[#5A7765] mb-1 block">Description</label>
+                            <Input
+                              value={transaction.description || ''}
+                              onChange={(e) => handleUpdateExtractedTransaction(transaction.tempId, 'description', e.target.value)}
+                              className="bg-white border-[#C9C8AF] text-[#181E18] h-8 text-sm"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="text-xs font-medium text-[#5A7765] mb-1 block">Notes</label>
+                            <Textarea
+                              value={transaction.notes || ''}
+                              onChange={(e) => handleUpdateExtractedTransaction(transaction.tempId, 'notes', e.target.value)}
+                              className="bg-white border-[#C9C8AF] text-[#181E18] text-sm"
+                              rows={2}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="flex justify-between items-center pt-4 border-t border-[#C9C8AF]">
+                <p className="text-sm text-[#5A7765]">
+                  {extractedTransactions.length} transaction(s) • Total: {formatCurrency(extractedTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0))}
+                </p>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowStatementModal(false);
+                      setExtractedTransactions([]);
+                    }}
+                    className="border-[#C9C8AF] text-[#5A7765]"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleImportExtractedTransactions}
+                    className="bg-[#0E351F] hover:bg-[#3B5B48] text-white"
+                  >
+                    Import All Transactions
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Add Modal */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
