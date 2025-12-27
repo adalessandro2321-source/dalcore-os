@@ -504,7 +504,7 @@ Return a JSON array of transactions.`,
 
           <input
             type="file"
-            accept=".pdf,.jpg,.jpeg,.png"
+            accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.csv"
             onChange={handleStatementUpload}
             className="hidden"
             id="statement-upload"
