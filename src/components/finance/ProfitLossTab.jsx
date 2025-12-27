@@ -514,12 +514,8 @@ export default function ProfitLossTab() {
                   <span>{formatCurrency(insuranceCosts)}</span>
                 </div>
                 <div className="flex justify-between items-center py-1 text-sm text-gray-600 pl-2">
-                  <span>Insurance (Operating Expenses)</span>
-                  <span>{formatCurrency(insuranceFromOpex)}</span>
-                </div>
-                <div className="flex justify-between items-center py-1 text-sm text-gray-600 pl-2">
-                  <span>Professional Services (Operating Expenses)</span>
-                  <span>{formatCurrency(professionalServicesFromOpex)}</span>
+                  <span>Operating Expenses (Reclassified to COGS)</span>
+                  <span>{formatCurrency(internalLaborCosts + insuranceFromOpex + professionalServicesFromOpex)}</span>
                 </div>
               </div>
             </div>
