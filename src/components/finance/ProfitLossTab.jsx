@@ -109,7 +109,13 @@ export default function ProfitLossTab() {
     oe.date && isInPeriod(oe.date, currentPeriod)
   ).reduce((sum, oe) => sum + (oe.amount || 0), 0);
 
-  const cogs = cogsFromBills + cogsFromMaterials + internalLaborCosts;
+  // Include insurance costs from Operating Expenses (Insurance)
+  const insuranceFromOpex = operatingExpenses.filter(oe => 
+    oe.category === 'Insurance' && 
+    oe.date && isInPeriod(oe.date, currentPeriod)
+  ).reduce((sum, oe) => sum + (oe.amount || 0), 0);
+
+  const cogs = cogsFromBills + cogsFromMaterials + internalLaborCosts + insuranceFromOpex;
 
   // Prior year COGS
   const priorYearCogsFromBills = bills.filter(b => 
@@ -128,7 +134,12 @@ export default function ProfitLossTab() {
     oe.date && isInPeriod(oe.date, priorYearPeriod)
   ).reduce((sum, oe) => sum + (oe.amount || 0), 0);
 
-  const priorYearCogs = priorYearCogsFromBills + priorYearCogsFromMaterials + priorYearInternalLaborCosts;
+  const priorYearInsuranceFromOpex = operatingExpenses.filter(oe => 
+    oe.category === 'Insurance' && 
+    oe.date && isInPeriod(oe.date, priorYearPeriod)
+  ).reduce((sum, oe) => sum + (oe.amount || 0), 0);
+
+  const priorYearCogs = priorYearCogsFromBills + priorYearCogsFromMaterials + priorYearInternalLaborCosts + priorYearInsuranceFromOpex;
 
   // Gross Profit
   const grossProfit = revenue - cogs;
@@ -242,7 +253,8 @@ export default function ProfitLossTab() {
       ['Permits & Inspections', permitsCosts],
       ['Waste Disposal', wasteCosts],
       ['Site Utilities', utilitiesCosts],
-      ['Job-Specific Insurance', insuranceCosts],
+      ['Job-Specific Insurance (Bills)', insuranceCosts],
+      ['Insurance (Operating Expenses)', insuranceFromOpex],
       ['Total COGS', cogs],
       [''],
       ['GROSS PROFIT', grossProfit],
@@ -480,8 +492,12 @@ export default function ProfitLossTab() {
                   <span>{formatCurrency(utilitiesCosts)}</span>
                 </div>
                 <div className="flex justify-between items-center py-1 text-sm text-gray-600 pl-2">
-                  <span>Job-Specific Insurance</span>
+                  <span>Job-Specific Insurance (Bills)</span>
                   <span>{formatCurrency(insuranceCosts)}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 text-sm text-gray-600 pl-2">
+                  <span>Insurance (Operating Expenses)</span>
+                  <span>{formatCurrency(insuranceFromOpex)}</span>
                 </div>
               </div>
             </div>
