@@ -314,58 +314,68 @@ export default function MaterialCosts({ projectId, project }) {
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `Extract all transactions from this credit card or bank statement (PDF, Excel, CSV, or image). For each transaction, identify:
-- Date (in YYYY-MM-DD format)
-- Merchant/vendor name
-- Amount (as a positive number, exclude currency symbols)
-- Description/memo if available
-- Auto-categorize into one of these categories: Material, Labor, Tool, Fuel, Equipment Rental, Dump Fee, Permit, Administration, Misc
-
-Look for transaction tables, line items, or lists. Return ALL transactions found.`,
-        file_urls: [file_url],
-        response_json_schema: {
-          type: "object",
-          properties: {
-            transactions: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  date: { type: "string" },
-                  transaction: { type: "string" },
-                  amount: { type: "number" },
-                  item: { type: "string" },
-                  description: { type: "string" },
-                  notes: { type: "string" }
-                },
-                required: ["date", "transaction", "amount", "item"]
+      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
+        file_url: file_url,
+        json_schema: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              date: { 
+                type: "string",
+                description: "Transaction date in YYYY-MM-DD format"
+              },
+              transaction: { 
+                type: "string",
+                description: "Merchant or vendor name"
+              },
+              amount: { 
+                type: "number",
+                description: "Transaction amount (positive number, no currency symbols)"
+              },
+              item: { 
+                type: "string",
+                description: "Category: Material, Labor, Tool, Fuel, Equipment Rental, Dump Fee, Permit, Administration, or Misc",
+                enum: ["Material", "Labor", "Tool", "Fuel", "Equipment Rental", "Dump Fee", "Permit", "Administration", "Misc"]
+              },
+              description: { 
+                type: "string",
+                description: "Transaction description or memo"
               }
-            }
-          },
-          required: ["transactions"]
+            },
+            required: ["date", "transaction", "amount", "item"]
+          }
         }
       });
 
-      if (!result.transactions || result.transactions.length === 0) {
-        alert('No transactions found in the statement. Please ensure the file contains transaction data and try again.');
+      if (result.status === 'error') {
+        alert(`Failed to extract data: ${result.details || 'Unknown error'}. Please try again.`);
         setExtractingStatement(false);
+        e.target.value = '';
         return;
       }
 
-      setExtractedTransactions(result.transactions.map((t, index) => ({
+      const transactions = result.output || [];
+      if (transactions.length === 0) {
+        alert('No transactions found in the statement. Please ensure the file contains transaction data and try again.');
+        setExtractingStatement(false);
+        e.target.value = '';
+        return;
+      }
+
+      setExtractedTransactions(transactions.map((t, index) => ({
         ...t,
         tempId: `temp-${index}`,
         project_id: projectId,
-        approved: false
+        approved: false,
+        notes: t.notes || t.description || ''
       })));
       setShowStatementModal(true);
     } catch (error) {
       console.error('Statement extraction error:', error);
-      alert(`Failed to extract transactions: ${error.message || 'Unknown error'}. Please try again or contact support.`);
+      alert(`Failed to extract transactions: ${error.message || 'Unknown error'}. Please try again.`);
     } finally {
       setExtractingStatement(false);
-      // Reset file input
       e.target.value = '';
     }
   };
