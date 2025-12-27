@@ -315,14 +315,14 @@ export default function MaterialCosts({ projectId, project }) {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `Extract all transactions from this credit card statement. For each transaction, identify:
+        prompt: `Extract all transactions from this credit card or bank statement (PDF, Excel, CSV, or image). For each transaction, identify:
 - Date (in YYYY-MM-DD format)
 - Merchant/vendor name
-- Amount (as a positive number)
+- Amount (as a positive number, exclude currency symbols)
 - Description/memo if available
 - Auto-categorize into one of these categories: Material, Labor, Tool, Fuel, Equipment Rental, Dump Fee, Permit, Administration, Misc
 
-Return a JSON array of transactions.`,
+Look for transaction tables, line items, or lists. Return ALL transactions found.`,
         file_urls: [file_url],
         response_json_schema: {
           type: "object",
@@ -347,6 +347,12 @@ Return a JSON array of transactions.`,
         }
       });
 
+      if (!result.transactions || result.transactions.length === 0) {
+        alert('No transactions found in the statement. Please ensure the file contains transaction data and try again.');
+        setExtractingStatement(false);
+        return;
+      }
+
       setExtractedTransactions(result.transactions.map((t, index) => ({
         ...t,
         tempId: `temp-${index}`,
@@ -356,9 +362,12 @@ Return a JSON array of transactions.`,
       setShowStatementModal(true);
     } catch (error) {
       console.error('Statement extraction error:', error);
-      alert('Failed to extract transactions from statement. Please try again.');
+      alert(`Failed to extract transactions: ${error.message || 'Unknown error'}. Please try again or contact support.`);
+    } finally {
+      setExtractingStatement(false);
+      // Reset file input
+      e.target.value = '';
     }
-    setExtractingStatement(false);
   };
 
   const handleUpdateExtractedTransaction = (tempId, field, value) => {
