@@ -159,13 +159,15 @@ export default function ProfitLossTab() {
   const priorYearGrossProfit = priorYearRevenue - priorYearCogs;
   const priorYearGrossMargin = priorYearRevenue > 0 ? (priorYearGrossProfit / priorYearRevenue) * 100 : 0;
 
-  // Operating Expenses
+  // Operating Expenses (excluding those already reclassified to COGS)
   const opex = operatingExpenses.filter(oe => 
-    oe.date && isInPeriod(oe.date, currentPeriod)
+    oe.date && isInPeriod(oe.date, currentPeriod) &&
+    !['Salaries & Wages', 'Insurance', 'Professional Services'].includes(oe.category)
   ).reduce((sum, oe) => sum + (oe.amount || 0), 0);
 
   const priorYearOpex = operatingExpenses.filter(oe => 
-    oe.date && isInPeriod(oe.date, priorYearPeriod)
+    oe.date && isInPeriod(oe.date, priorYearPeriod) &&
+    !['Salaries & Wages', 'Insurance', 'Professional Services'].includes(oe.category)
   ).reduce((sum, oe) => sum + (oe.amount || 0), 0);
 
   // Operating Income (EBIT)
