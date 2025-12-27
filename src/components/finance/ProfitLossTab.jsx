@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -104,7 +103,13 @@ export default function ProfitLossTab() {
     m.project_id // Must be linked to a project
   ).reduce((sum, m) => sum + (m.amount || 0), 0);
 
-  const cogs = cogsFromBills + cogsFromMaterials;
+  // Include internal field labor costs from Operating Expenses (Salaries & Wages)
+  const internalLaborCosts = operatingExpenses.filter(oe => 
+    oe.category === 'Salaries & Wages' && 
+    oe.date && isInPeriod(oe.date, currentPeriod)
+  ).reduce((sum, oe) => sum + (oe.amount || 0), 0);
+
+  const cogs = cogsFromBills + cogsFromMaterials + internalLaborCosts;
 
   // Prior year COGS
   const priorYearCogsFromBills = bills.filter(b => 
@@ -118,7 +123,12 @@ export default function ProfitLossTab() {
     m.project_id
   ).reduce((sum, m) => sum + (m.amount || 0), 0);
 
-  const priorYearCogs = priorYearCogsFromBills + priorYearCogsFromMaterials;
+  const priorYearInternalLaborCosts = operatingExpenses.filter(oe => 
+    oe.category === 'Salaries & Wages' && 
+    oe.date && isInPeriod(oe.date, priorYearPeriod)
+  ).reduce((sum, oe) => sum + (oe.amount || 0), 0);
+
+  const priorYearCogs = priorYearCogsFromBills + priorYearCogsFromMaterials + priorYearInternalLaborCosts;
 
   // Gross Profit
   const grossProfit = revenue - cogs;
@@ -192,7 +202,7 @@ export default function ProfitLossTab() {
     b.category === 'Project Management' && b.approved_at && isInPeriod(b.approved_at, currentPeriod) && b.project_id
   ).reduce((sum, b) => sum + (b.amount || 0), 0);
 
-  const totalLaborCosts = laborFieldCosts + laborSupervisionCosts + pmCosts;
+  const totalLaborCosts = laborFieldCosts + laborSupervisionCosts + pmCosts + internalLaborCosts;
 
   // Calculate cost-to-revenue ratios (what % of revenue each cost category consumes)
   const laborCostRatio = revenue > 0 ? (totalLaborCosts / revenue) * 100 : 0;
@@ -222,9 +232,10 @@ export default function ProfitLossTab() {
       ['Recognized Revenue', revenue],
       [''],
       ['COST OF GOODS SOLD (DIRECT JOB COSTS)'],
-      ['Labor - Field', laborFieldCosts],
+      ['Labor - Field (External)', laborFieldCosts],
       ['Labor - Site Supervision', laborSupervisionCosts],
       ['Project Management', pmCosts],
+      ['Internal Labor (Salaries & Wages)', internalLaborCosts],
       ['Materials', materialsCosts],
       ['Subcontractors', subcontractorCosts],
       ['Equipment Rental', equipmentCosts],
@@ -425,7 +436,7 @@ export default function ProfitLossTab() {
               <div className="pl-4 space-y-1">
                 <div className="text-xs font-semibold text-gray-700 pt-2 pb-1">Labor</div>
                 <div className="flex justify-between items-center py-1 text-sm text-gray-600 pl-2">
-                  <span>Field Labor</span>
+                  <span>Field Labor (External)</span>
                   <span>{formatCurrency(laborFieldCosts)}</span>
                 </div>
                 <div className="flex justify-between items-center py-1 text-sm text-gray-600 pl-2">
@@ -435,6 +446,10 @@ export default function ProfitLossTab() {
                 <div className="flex justify-between items-center py-1 text-sm text-gray-600 pl-2">
                   <span>Project Management</span>
                   <span>{formatCurrency(pmCosts)}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 text-sm text-gray-600 pl-2">
+                  <span>Internal Labor (Salaries & Wages)</span>
+                  <span>{formatCurrency(internalLaborCosts)}</span>
                 </div>
                 
                 <div className="text-xs font-semibold text-gray-700 pt-2 pb-1">Direct Costs</div>
