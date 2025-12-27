@@ -510,11 +510,11 @@ Return a JSON array of transactions.`,
             id="statement-upload"
             disabled={extractingStatement}
           />
-          <label htmlFor="statement-upload">
+          <label htmlFor="statement-upload" className="cursor-pointer">
             <Button
-              as="span"
+              type="button"
               variant="outline"
-              className="border-[#2A6B5A] text-[#1B4D3E] hover:bg-[#E8F4F1]"
+              className="border-[#2A6B5A] text-[#1B4D3E] hover:bg-[#E8F4F1] pointer-events-none"
               disabled={extractingStatement}
             >
               {extractingStatement ? (
