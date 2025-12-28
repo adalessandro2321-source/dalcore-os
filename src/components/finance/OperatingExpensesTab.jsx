@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -422,6 +421,32 @@ export default function OperatingExpensesTab() {
   const displayMonth = new Date(filterYear, filterMonthNum, 15);
   const displayMonthName = format(displayMonth, 'MMMM yyyy');
 
+  // Calculate annual totals
+  const currentYearExpenses = React.useMemo(() => {
+    const year = new Date().getFullYear();
+    return expenses.filter(e => {
+      if (!e.date) return false;
+      try {
+        const txDate = parseISO(e.date);
+        return txDate.getUTCFullYear() === year;
+      } catch {
+        return false;
+      }
+    });
+  }, [expenses]);
+
+  const totalAnnualExpenses = React.useMemo(() => {
+    return currentYearExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+  }, [currentYearExpenses]);
+
+  const averageMonthlyExpenses = React.useMemo(() => {
+    if (currentYearExpenses.length === 0) return 0;
+    const monthsWithExpenses = new Set(currentYearExpenses.map(e => parseISO(e.date).getUTCMonth()));
+    const numberOfMonths = monthsWithExpenses.size;
+    const divisor = Math.max(1, numberOfMonths);
+    return totalAnnualExpenses / divisor;
+  }, [currentYearExpenses, totalAnnualExpenses]);
+
   return (
     <div className="space-y-6">
       {/* Duplicate Detection Alert */}
@@ -490,7 +515,7 @@ export default function OperatingExpensesTab() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-white border-gray-200">
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
@@ -515,9 +540,18 @@ export default function OperatingExpensesTab() {
         <Card className="bg-white border-gray-200">
           <CardContent className="p-6">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Average per Transaction</p>
+              <p className="text-sm text-gray-600 mb-1">Total Year ({new Date().getFullYear()})</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalAnnualExpenses)}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white border-gray-200">
+          <CardContent className="p-6">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Avg. Monthly (YTD)</p>
               <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(filteredExpenses.length > 0 ? periodTotal / filteredExpenses.length : 0)}
+                {formatCurrency(averageMonthlyExpenses)}
               </p>
             </div>
           </CardContent>
