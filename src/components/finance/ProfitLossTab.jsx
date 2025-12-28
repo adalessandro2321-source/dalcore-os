@@ -200,9 +200,7 @@ export default function ProfitLossTab() {
 
   const subcontractorCosts = bills.filter(b => 
     b.category === 'Subcontractor' && 
-    ['Approved', 'Paid', 'Partial'].includes(b.status) &&
-    ((b.approved_at && isInPeriod(b.approved_at, currentPeriod)) || 
-     (b.paid_at && isInPeriod(b.paid_at, currentPeriod))) && 
+    b.approved_at && isInPeriod(b.approved_at, currentPeriod) && 
     b.project_id
   ).reduce((sum, b) => sum + (b.amount || 0), 0);
 
