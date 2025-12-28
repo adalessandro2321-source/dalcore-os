@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -100,6 +99,16 @@ export default function ProjectFinancials({ projectId, project }) {
     },
     enabled: !!projectId,
   });
+
+  // Auto-recalculate budget when material costs or bills change
+  React.useEffect(() => {
+    if (projectId && materialCosts.length > 0 && bills.length > 0 && !recalculating) {
+      const timer = setTimeout(() => {
+        recalculateBudget();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [materialCosts.length, bills.length, projectId]);
 
   const updateForecastMutation = useMutation({
     mutationFn: async (forecast) => {
