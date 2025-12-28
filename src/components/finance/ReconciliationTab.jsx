@@ -130,20 +130,59 @@ export default function ReconciliationTab() {
           return;
         }
 
-        // Parse CSV (skip header row)
+        // Parse header to detect columns
+        const headerParts = lines[0].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(h => 
+          h.replace(/^"|"$/g, '').trim().toLowerCase()
+        );
+
+        // Find column indices
+        const dateIndex = headerParts.findIndex(h => h.includes('date') || h.includes('trans date') || h.includes('posted'));
+        const descIndex = headerParts.findIndex(h => h.includes('description') || h.includes('merchant') || h.includes('vendor'));
+        const amountIndex = headerParts.findIndex(h => h.includes('amount') || h.includes('charge') || h.includes('debit'));
+
+        if (dateIndex === -1 || descIndex === -1 || amountIndex === -1) {
+          alert('Could not detect required columns (date, description/merchant, amount) in CSV. Please ensure your CSV has proper headers.');
+          setExtractingStatement(false);
+          e.target.value = '';
+          return;
+        }
+
+        // Parse CSV data rows
         transactions = lines.slice(1).map(line => {
-          const parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); // Split by comma outside quotes
-          const [date, transaction, amount, description] = parts.map(cell => 
+          const parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => 
             cell.replace(/^"|"$/g, '').trim()
           );
           
+          const dateStr = parts[dateIndex] || '';
+          const transaction = parts[descIndex] || '';
+          const amountStr = parts[amountIndex] || '';
+          
+          // Parse date (handle MM/DD/YYYY and other common formats)
+          let date = '';
+          if (dateStr) {
+            const parsed = new Date(dateStr);
+            if (!isNaN(parsed.getTime())) {
+              date = parsed.toISOString().split('T')[0];
+            }
+          }
+          
+          // Parse amount (remove currency symbols, commas, parentheses)
+          const amount = Math.abs(parseFloat(amountStr.replace(/[$,()]/g, '').replace(/[^0-9.-]/g, '')) || 0);
+          
           return {
-            date: date || '',
-            transaction: transaction || '',
-            amount: parseFloat(amount?.replace(/[^0-9.-]/g, '')) || 0,
-            description: description || ''
+            date,
+            transaction,
+            amount,
+            description: ''
           };
-        }).filter(t => t.date && t.transaction && t.amount);
+        }).filter(t => t.date && t.transaction && t.amount > 0);
+
+        if (transactions.length === 0) {
+          alert('No valid transactions found in CSV. Please check the file format.');
+          setExtractingStatement(false);
+          e.target.value = '';
+          return;
+        }
       } else {
         // Use AI extraction for PDFs, images, and Excel files
         const { file_url } = await base44.integrations.Core.UploadFile({ file });
