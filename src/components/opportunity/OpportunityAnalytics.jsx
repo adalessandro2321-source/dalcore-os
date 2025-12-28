@@ -57,8 +57,8 @@ export default function OpportunityAnalytics({ opportunities }) {
       retroactiveWinsValue += finalValue;
     });
 
-    // Count opportunities by stage (excluding Under Contract as they're now projects)
-    const activeOpportunities = opportunities.filter(opp => opp.stage !== 'Under Contract');
+    // Use opportunities directly (already filtered in parent to exclude Under Contract)
+    const activeOpportunities = opportunities;
     
     const awarded = activeOpportunities.filter(o => o.stage === 'Awarded').length;
     const lost = activeOpportunities.filter(o => o.stage === 'Lost').length;
