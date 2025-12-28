@@ -297,7 +297,7 @@ export default function Opportunities() {
         </TabsContent>
 
         <TabsContent value="analytics">
-          <OpportunityAnalytics opportunities={opportunities} />
+          <OpportunityAnalytics opportunities={activeOpportunities} />
         </TabsContent>
       </Tabs>
 
