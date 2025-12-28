@@ -39,6 +39,7 @@ const OPERATING_EXPENSE_CATEGORIES = [
 ];
 
 export default function ReconciliationTab() {
+  const [uploadType, setUploadType] = React.useState('credit_card'); // 'credit_card' or 'payroll'
   const [extractingStatement, setExtractingStatement] = React.useState(false);
   const [extractedTransactions, setExtractedTransactions] = React.useState([]);
   const [expandedTransaction, setExpandedTransaction] = React.useState(null);
@@ -119,33 +120,68 @@ export default function ReconciliationTab() {
       // Use AI extraction for all file types (CSV, PDF, images, Excel)
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       
+      // Different schema for payroll vs credit card
+      const schema = uploadType === 'payroll' ? {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            date: { 
+              type: "string",
+              description: "Pay date in YYYY-MM-DD format"
+            },
+            employee_name: { 
+              type: "string",
+              description: "Employee name"
+            },
+            gross_pay: { 
+              type: "number",
+              description: "Gross pay amount"
+            },
+            net_pay: { 
+              type: "number",
+              description: "Net pay amount"
+            },
+            taxes: { 
+              type: "number",
+              description: "Total taxes withheld"
+            },
+            deductions: { 
+              type: "number",
+              description: "Other deductions"
+            }
+          },
+          required: ["date", "employee_name", "gross_pay"]
+        }
+      } : {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            date: { 
+              type: "string",
+              description: "Transaction date in YYYY-MM-DD format"
+            },
+            transaction: { 
+              type: "string",
+              description: "Merchant or vendor name"
+            },
+            amount: { 
+              type: "number",
+              description: "Transaction amount (positive number, no currency symbols)"
+            },
+            description: { 
+              type: "string",
+              description: "Transaction description or memo"
+            }
+          },
+          required: ["date", "transaction", "amount"]
+        }
+      };
+      
       const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
         file_url: file_url,
-        json_schema: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              date: { 
-                type: "string",
-                description: "Transaction date in YYYY-MM-DD format"
-              },
-              transaction: { 
-                type: "string",
-                description: "Merchant or vendor name"
-              },
-              amount: { 
-                type: "number",
-                description: "Transaction amount (positive number, no currency symbols)"
-              },
-              description: { 
-                type: "string",
-                description: "Transaction description or memo"
-              }
-            },
-            required: ["date", "transaction", "amount"]
-          }
-        }
+        json_schema: schema
       });
 
       if (result.status === 'error') {
@@ -157,38 +193,62 @@ export default function ReconciliationTab() {
 
       const transactions = result.output || [];
       if (transactions.length === 0) {
-        alert('No transactions found in the statement. Please ensure the file contains transaction data and try again.');
+        alert(uploadType === 'payroll' ? 'No payroll records found in the file.' : 'No transactions found in the statement. Please ensure the file contains transaction data and try again.');
         setExtractingStatement(false);
         e.target.value = '';
         return;
       }
 
-      // Check for duplicates and categorize
-      const processedTransactions = transactions.map((t, index) => {
-        const isDuplicateMaterial = existingMaterialCosts.some(ec => 
-          ec.date === t.date && 
-          Math.abs(ec.amount - t.amount) < 0.01 &&
-          ec.transaction.toLowerCase().includes(t.transaction.toLowerCase())
-        );
+      // Process based on upload type
+      const processedTransactions = uploadType === 'payroll' 
+        ? transactions.map((t, index) => {
+            // For payroll, check for duplicates in operating expenses
+            const isDuplicateOpEx = existingOperatingExpenses.some(oe => 
+              oe.date === t.date && 
+              Math.abs(oe.amount - (t.gross_pay || 0)) < 0.01 &&
+              oe.category === 'Salaries & Wages' &&
+              oe.vendor?.toLowerCase().includes(t.employee_name?.toLowerCase() || '')
+            );
 
-        const isDuplicateOpEx = existingOperatingExpenses.some(oe => 
-          oe.date === t.date && 
-          Math.abs(oe.amount - t.amount) < 0.01 &&
-          oe.vendor?.toLowerCase().includes(t.transaction.toLowerCase())
-        );
+            return {
+              ...t,
+              tempId: `temp-${index}`,
+              type: 'OperatingExpense', // Payroll always goes to operating expense
+              category: 'Salaries & Wages',
+              amount: t.gross_pay || 0,
+              transaction: t.employee_name || 'Employee',
+              description: `Payroll - Gross: ${t.gross_pay || 0}, Net: ${t.net_pay || 0}${t.taxes ? `, Taxes: ${t.taxes}` : ''}`,
+              notes: '',
+              isDuplicate: isDuplicateOpEx,
+              duplicateType: isDuplicateOpEx ? 'OperatingExpense' : null
+            };
+          })
+        : transactions.map((t, index) => {
+            // Credit card transaction processing
+            const isDuplicateMaterial = existingMaterialCosts.some(ec => 
+              ec.date === t.date && 
+              Math.abs(ec.amount - t.amount) < 0.01 &&
+              ec.transaction.toLowerCase().includes(t.transaction.toLowerCase())
+            );
 
-        return {
-          ...t,
-          tempId: `temp-${index}`,
-          type: 'MaterialCost', // Default to MaterialCost
-          item: 'Material', // Default material category
-          category: 'Miscellaneous', // Default operating expense category
-          project_id: '',
-          notes: '',
-          isDuplicate: isDuplicateMaterial || isDuplicateOpEx,
-          duplicateType: isDuplicateMaterial ? 'MaterialCost' : (isDuplicateOpEx ? 'OperatingExpense' : null)
-        };
-      });
+            const isDuplicateOpEx = existingOperatingExpenses.some(oe => 
+              oe.date === t.date && 
+              Math.abs(oe.amount - t.amount) < 0.01 &&
+              oe.vendor?.toLowerCase().includes(t.transaction.toLowerCase())
+            );
+
+            return {
+              ...t,
+              tempId: `temp-${index}`,
+              type: 'MaterialCost', // Default to MaterialCost
+              item: 'Material', // Default material category
+              category: 'Miscellaneous', // Default operating expense category
+              project_id: '',
+              notes: '',
+              isDuplicate: isDuplicateMaterial || isDuplicateOpEx,
+              duplicateType: isDuplicateMaterial ? 'MaterialCost' : (isDuplicateOpEx ? 'OperatingExpense' : null)
+            };
+          });
 
       setExtractedTransactions(processedTransactions);
       // Auto-select non-duplicates
@@ -257,13 +317,26 @@ export default function ReconciliationTab() {
         <CardHeader className="border-b border-gray-300">
           <CardTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            Credit Card Statement Reconciliation
+            Financial Document Reconciliation
           </CardTitle>
           <p className="text-sm text-gray-600 mt-2">
-            Upload your credit card statement to extract, categorize, and reconcile all transactions across projects and operating expenses.
+            Upload credit card statements or payroll reports to automatically extract, categorize, and reconcile transactions.
           </p>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-6 space-y-4">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-gray-700">Upload Type:</label>
+            <Select value={uploadType} onValueChange={setUploadType}>
+              <SelectTrigger className="w-48 bg-white border-gray-300">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="credit_card">Credit Card Statement</SelectItem>
+                <SelectItem value="payroll">Payroll Report</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-center gap-4">
             <input
               type="file"
@@ -282,19 +355,19 @@ export default function ReconciliationTab() {
                 {extractingStatement ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Extracting Transactions...
+                    {uploadType === 'payroll' ? 'Extracting Payroll...' : 'Extracting Transactions...'}
                   </>
                 ) : (
                   <>
                     <Upload className="w-4 h-4 mr-2" />
-                    Upload Credit Card Statement
+                    {uploadType === 'payroll' ? 'Upload Payroll Report' : 'Upload Credit Card Statement'}
                   </>
                 )}
               </Button>
             </label>
             {extractingStatement && (
               <p className="text-sm text-gray-600">
-                This may take a moment. We're extracting and analyzing all transactions...
+                This may take a moment. We're extracting and analyzing all {uploadType === 'payroll' ? 'payroll records' : 'transactions'}...
               </p>
             )}
           </div>
