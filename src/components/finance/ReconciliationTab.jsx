@@ -502,13 +502,11 @@ export default function ReconciliationTab() {
                                   <SelectValue placeholder="Select project" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {allProjects
-                                    .filter(p => p.status !== 'Closed' && p.status !== 'Completed')
-                                    .map(proj => (
-                                      <SelectItem key={proj.id} value={proj.id}>
-                                        {proj.number ? `${proj.number} - ` : ''}{proj.name}
-                                      </SelectItem>
-                                    ))}
+                                  {allProjects.map(proj => (
+                                    <SelectItem key={proj.id} value={proj.id}>
+                                      {proj.number ? `${proj.number} - ` : ''}{proj.name}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             </div>
