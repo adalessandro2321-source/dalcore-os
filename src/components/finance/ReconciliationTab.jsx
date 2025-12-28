@@ -116,45 +116,76 @@ export default function ReconciliationTab() {
 
     setExtractingStatement(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      
-      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url: file_url,
-        json_schema: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              date: { 
-                type: "string",
-                description: "Transaction date in YYYY-MM-DD format"
-              },
-              transaction: { 
-                type: "string",
-                description: "Merchant or vendor name"
-              },
-              amount: { 
-                type: "number",
-                description: "Transaction amount (positive number, no currency symbols)"
-              },
-              description: { 
-                type: "string",
-                description: "Transaction description or memo"
-              }
-            },
-            required: ["date", "transaction", "amount"]
-          }
+      let transactions = [];
+
+      // Handle CSV files directly
+      if (file.name.toLowerCase().endsWith('.csv')) {
+        const text = await file.text();
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        if (lines.length <= 1) {
+          alert('CSV file is empty or has no data rows.');
+          setExtractingStatement(false);
+          e.target.value = '';
+          return;
         }
-      });
 
-      if (result.status === 'error') {
-        alert(`Failed to extract data: ${result.details || 'Unknown error'}. Please try again.`);
-        setExtractingStatement(false);
-        e.target.value = '';
-        return;
+        // Parse CSV (skip header row)
+        transactions = lines.slice(1).map(line => {
+          const parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); // Split by comma outside quotes
+          const [date, transaction, amount, description] = parts.map(cell => 
+            cell.replace(/^"|"$/g, '').trim()
+          );
+          
+          return {
+            date: date || '',
+            transaction: transaction || '',
+            amount: parseFloat(amount?.replace(/[^0-9.-]/g, '')) || 0,
+            description: description || ''
+          };
+        }).filter(t => t.date && t.transaction && t.amount);
+      } else {
+        // Use AI extraction for PDFs, images, and Excel files
+        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        
+        const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
+          file_url: file_url,
+          json_schema: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                date: { 
+                  type: "string",
+                  description: "Transaction date in YYYY-MM-DD format"
+                },
+                transaction: { 
+                  type: "string",
+                  description: "Merchant or vendor name"
+                },
+                amount: { 
+                  type: "number",
+                  description: "Transaction amount (positive number, no currency symbols)"
+                },
+                description: { 
+                  type: "string",
+                  description: "Transaction description or memo"
+                }
+              },
+              required: ["date", "transaction", "amount"]
+            }
+          }
+        });
+
+        if (result.status === 'error') {
+          alert(`Failed to extract data: ${result.details || 'Unknown error'}. Please try again.`);
+          setExtractingStatement(false);
+          e.target.value = '';
+          return;
+        }
+
+        transactions = result.output || [];
       }
-
-      const transactions = result.output || [];
       if (transactions.length === 0) {
         alert('No transactions found in the statement. Please ensure the file contains transaction data and try again.');
         setExtractingStatement(false);
