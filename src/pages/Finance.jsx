@@ -1,10 +1,11 @@
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, TrendingUp, FileText, Receipt } from "lucide-react";
+import { DollarSign, TrendingUp, FileText, Receipt, CreditCard } from "lucide-react";
 import CashRegisterTab from "../components/finance/CashRegisterTab";
 import ProfitLossTab from "../components/finance/ProfitLossTab";
 import PerformanceObligationsTab from "../components/finance/PerformanceObligationsTab";
 import OperatingExpensesTab from "../components/finance/OperatingExpensesTab";
+import ReconciliationTab from "../components/finance/ReconciliationTab";
 
 export default function Finance() {
   return (
@@ -32,6 +33,10 @@ export default function Finance() {
             <Receipt className="w-4 h-4 mr-2" />
             Operating Expenses
           </TabsTrigger>
+          <TabsTrigger value="reconciliation" className="data-[state=active]:bg-[#0E351F] data-[state=active]:text-white">
+            <CreditCard className="w-4 h-4 mr-2" />
+            Reconciliation
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pnl">
@@ -48,6 +53,10 @@ export default function Finance() {
 
         <TabsContent value="opex">
           <OperatingExpensesTab />
+        </TabsContent>
+
+        <TabsContent value="reconciliation">
+          <ReconciliationTab />
         </TabsContent>
       </Tabs>
     </div>
