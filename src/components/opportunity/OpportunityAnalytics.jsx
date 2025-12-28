@@ -86,8 +86,9 @@ export default function OpportunityAnalytics({ opportunities }) {
       .filter(o => o.stage === 'Lost')
       .reduce((sum, o) => sum + (o.estimated_value || 0), 0);
       
+    // Pipeline value includes Lead, Qualified, Bidding, AND Awarded opportunities (not yet converted to projects)
     const activeValue = activeOpportunities
-      .filter(o => ['Lead', 'Qualified', 'Bidding'].includes(o.stage))
+      .filter(o => ['Lead', 'Qualified', 'Bidding', 'Awarded'].includes(o.stage))
       .reduce((sum, o) => sum + (o.estimated_value || 0), 0);
 
     // Averages
@@ -187,7 +188,7 @@ export default function OpportunityAnalytics({ opportunities }) {
                   {formatCurrency(analytics.activeValue)}
                 </p>
                 <p className="text-xs text-gray-600 mt-1">
-                  {analytics.active} active opportunities
+                  {analytics.active + opportunities.filter(o => o.stage === 'Awarded').length} opportunities in pipeline
                 </p>
               </div>
               <Target className="w-8 h-8 text-blue-600" />
