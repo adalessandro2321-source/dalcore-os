@@ -61,21 +61,18 @@ export default function TaxAudit2025() {
       );
       const revenue = projectPOs.reduce((sum, po) => sum + (po.allocated_value || 0), 0);
 
-      // Calculate COGS from Bills (approved in 2025)
+      // Calculate COGS from all approved Bills
       const projectBills = bills.filter(b => 
         b.project_id === project.id &&
         b.category && cogsCategories.includes(b.category) &&
-        b.approved_at &&
-        new Date(b.approved_at).getUTCFullYear() === 2025
+        b.status === 'Approved'
       );
       const cogsFromBills = projectBills.reduce((sum, b) => sum + (b.amount || 0), 0);
 
-      // Calculate COGS from Material Costs (approved in 2025)
+      // Calculate COGS from all approved Material Costs
       const projectMaterialCosts = materialCosts.filter(m => 
         m.project_id === project.id &&
-        m.approved &&
-        m.date &&
-        new Date(m.date).getUTCFullYear() === 2025
+        m.approved
       );
       const cogsFromMaterials = projectMaterialCosts.reduce((sum, m) => sum + (m.amount || 0), 0);
 
@@ -326,8 +323,8 @@ export default function TaxAudit2025() {
           <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
             <li><strong>Projects Included:</strong> All projects with status 'Completed'</li>
             <li><strong>Revenue Recognition:</strong> All completed performance obligations linked to each project</li>
-            <li><strong>COGS from Bills:</strong> All bills approved in 2025 with COGS categories (Subcontractor, Materials, Labor, Equipment, etc.)</li>
-            <li><strong>COGS from Materials:</strong> All approved material costs (including Tools and Fuel) dated in 2025</li>
+            <li><strong>COGS from Bills:</strong> All approved bills with COGS categories (Subcontractor, Materials, Labor, Equipment, etc.)</li>
+            <li><strong>COGS from Materials:</strong> All approved material costs (including Tools and Fuel)</li>
             <li><strong>Exclusions:</strong> Operating expenses (Salaries, Insurance, Professional Services) are not allocated to project-level COGS</li>
           </ul>
         </CardContent>
