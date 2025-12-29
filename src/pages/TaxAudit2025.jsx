@@ -51,12 +51,28 @@ export default function TaxAudit2025() {
       return [];
     }
 
+    // Debug logging
+    console.log('=== 2025 TAX AUDIT DEBUG ===');
+    console.log('Total projects:', projects.length);
+    console.log('Projects with Completed status:', projects.filter(p => p.status === 'Completed').length);
+    console.log('Projects with actual_completion_date:', projects.filter(p => p.actual_completion_date).length);
+    
+    projects.forEach(p => {
+      if (p.actual_completion_date) {
+        const year = new Date(p.actual_completion_date).getUTCFullYear();
+        console.log(`Project: ${p.name} | Completion Date: ${p.actual_completion_date} | Year: ${year}`);
+      }
+    });
+
     // Filter projects completed in 2025
     const completedProjects2025 = projects.filter(p => {
       if (!p.actual_completion_date) return false;
       const completionYear = new Date(p.actual_completion_date).getUTCFullYear();
       return completionYear === 2025;
     });
+    
+    console.log('Projects completed in 2025:', completedProjects2025.length);
+    console.log('===========================');
 
     const projectAudits = completedProjects2025.map(project => {
       // Calculate Revenue: Completed performance obligations for this project
