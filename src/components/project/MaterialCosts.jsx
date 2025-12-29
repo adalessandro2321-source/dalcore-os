@@ -169,15 +169,20 @@ export default function MaterialCosts({ projectId, project }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }) => {
+    mutationFn: async ({ id, data, oldProjectId }) => {
       const cost = await base44.entities.MaterialCost.update(id, data);
-      await recalculateProjectBudget(projectId);
+      // Recalculate both projects if project changed
+      await recalculateProjectBudget(oldProjectId);
+      if (data.project_id && data.project_id !== oldProjectId) {
+        await recalculateProjectBudget(data.project_id);
+      }
       return cost;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['materialCosts', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['projectBudget', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['materialCosts'] });
+      queryClient.invalidateQueries({ queryKey: ['allMaterialCosts'] });
+      queryClient.invalidateQueries({ queryKey: ['projectBudgets'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
       setEditingId(null);
       setEditData({});
     },
@@ -203,12 +208,18 @@ export default function MaterialCosts({ projectId, project }) {
       amount: cost.amount,
       item: cost.item,
       description: cost.description,
-      notes: cost.notes
+      notes: cost.notes,
+      project_id: cost.project_id
     });
   };
 
   const handleSaveEdit = () => {
-    updateMutation.mutate({ id: editingId, data: editData });
+    const cost = materialCosts.find(c => c.id === editingId);
+    updateMutation.mutate({ 
+      id: editingId, 
+      data: editData,
+      oldProjectId: cost?.project_id 
+    });
   };
 
   const handleCancelEdit = () => {
@@ -682,6 +693,7 @@ export default function MaterialCosts({ projectId, project }) {
                 <thead className="bg-[#C9C8AF] border-b-2 border-[#9FA097]">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-[#181E18] uppercase">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[#181E18] uppercase">Project</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-[#181E18] uppercase">Transaction</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-[#181E18] uppercase">Amount</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-[#181E18] uppercase">Category</th>
@@ -712,6 +724,31 @@ export default function MaterialCosts({ projectId, project }) {
                             />
                           ) : (
                             <span className="text-[#181E18]">{formatDate(cost.date)}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          {isEditing ? (
+                            <Select
+                              value={editData.project_id || ''}
+                              onValueChange={(value) => setEditData({...editData, project_id: value})}
+                            >
+                              <SelectTrigger className="bg-white border-[#C9C8AF] text-[#181E18] text-sm h-8 min-w-[150px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {allProjects
+                                  .filter(p => p.status !== 'Closed')
+                                  .map(proj => (
+                                    <SelectItem key={proj.id} value={proj.id}>
+                                      {proj.number ? `${proj.number} - ` : ''}{proj.name}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <span className="text-[#181E18]">
+                              {allProjects.find(p => p.id === cost.project_id)?.name || '-'}
+                            </span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm">
