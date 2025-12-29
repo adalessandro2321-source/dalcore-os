@@ -61,11 +61,11 @@ export default function TaxAudit2025() {
       );
       const revenue = projectPOs.reduce((sum, po) => sum + (po.allocated_value || 0), 0);
 
-      // Calculate COGS from all approved Bills
+      // Calculate COGS from all Bills (excluding Draft and Void)
       const projectBills = bills.filter(b => 
         b.project_id === project.id &&
-        b.category && cogsCategories.includes(b.category) &&
-        b.status === 'Approved'
+        b.status !== 'Draft' &&
+        b.status !== 'Void'
       );
       const cogsFromBills = projectBills.reduce((sum, b) => sum + (b.amount || 0), 0);
 
@@ -323,7 +323,7 @@ export default function TaxAudit2025() {
           <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
             <li><strong>Projects Included:</strong> All projects with status 'Completed'</li>
             <li><strong>Revenue Recognition:</strong> All completed performance obligations linked to each project</li>
-            <li><strong>COGS from Bills:</strong> All approved bills with COGS categories (Subcontractor, Materials, Labor, Equipment, etc.)</li>
+            <li><strong>COGS from Bills:</strong> All bills linked to each project (excluding Draft and Void status)</li>
             <li><strong>COGS from Materials:</strong> All approved material costs (including Tools and Fuel)</li>
             <li><strong>Exclusions:</strong> Operating expenses (Salaries, Insurance, Professional Services) are not allocated to project-level COGS</li>
           </ul>
