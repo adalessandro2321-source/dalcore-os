@@ -28,6 +28,7 @@ import Projects from './pages/Projects';
 import Risks from './pages/Risks';
 import Schedule from './pages/Schedule';
 import Templates from './pages/Templates';
+import TaxAudit2025 from './pages/TaxAudit2025';
 import __Layout from './Layout.jsx';
 
 
@@ -62,6 +63,7 @@ export const PAGES = {
     "Risks": Risks,
     "Schedule": Schedule,
     "Templates": Templates,
+    "TaxAudit2025": TaxAudit2025,
 }
 
 export const pagesConfig = {
