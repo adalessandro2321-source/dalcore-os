@@ -28,6 +28,11 @@ export default function TaxAudit2025() {
     queryFn: () => base44.entities.MaterialCost.list(),
   });
 
+  const { data: operatingExpenses = [], isLoading: operatingExpensesLoading } = useQuery({
+    queryKey: ['operatingExpenses'],
+    queryFn: () => base44.entities.OperatingExpense.list(),
+  });
+
   const { data: companies = [] } = useQuery({
     queryKey: ['companies'],
     queryFn: () => base44.entities.Company.list(),
@@ -45,6 +50,16 @@ export default function TaxAudit2025() {
     'Job-Specific Insurance',
     'Project Management'
   ];
+
+  // Calculate total 2025 Operating Expenses
+  const totalOperatingExpenses2025 = React.useMemo(() => {
+    if (operatingExpensesLoading) return 0;
+    return operatingExpenses.filter(oe => {
+      if (!oe.date) return false;
+      const expenseYear = new Date(oe.date).getUTCFullYear();
+      return expenseYear === 2025;
+    }).reduce((sum, oe) => sum + (oe.amount || 0), 0);
+  }, [operatingExpenses, operatingExpensesLoading]);
 
   const auditData = React.useMemo(() => {
     if (projectsLoading || poLoading || billsLoading || materialCostsLoading) {
@@ -113,24 +128,31 @@ export default function TaxAudit2025() {
   }, [projects, performanceObligations, bills, materialCosts, companies, projectsLoading, poLoading, billsLoading, materialCostsLoading]);
 
   const totals = React.useMemo(() => {
+    const projectCOGS = auditData.reduce((sum, p) => sum + p.totalCOGS, 0);
+    const finalTotalCOGS = projectCOGS + totalOperatingExpenses2025;
+    const totalRevenue = auditData.reduce((sum, p) => sum + p.revenue, 0);
+    const finalTotalGrossProfit = totalRevenue - finalTotalCOGS;
+    const finalAvgGrossMargin = totalRevenue > 0 
+      ? (finalTotalGrossProfit / totalRevenue) * 100 
+      : 0;
+
     return {
-      totalRevenue: auditData.reduce((sum, p) => sum + p.revenue, 0),
-      totalCOGS: auditData.reduce((sum, p) => sum + p.totalCOGS, 0),
-      totalGrossProfit: auditData.reduce((sum, p) => sum + p.grossProfit, 0),
+      totalRevenue: totalRevenue,
+      totalCOGS: finalTotalCOGS,
+      totalGrossProfit: finalTotalGrossProfit,
       totalCogsFromBills: auditData.reduce((sum, p) => sum + p.cogsFromBills, 0),
       totalCogsFromMaterials: auditData.reduce((sum, p) => sum + p.cogsFromMaterials, 0),
-      avgGrossMargin: auditData.length > 0 
-        ? auditData.reduce((sum, p) => sum + p.grossMargin, 0) / auditData.length 
-        : 0
+      totalOperatingExpenses2025: totalOperatingExpenses2025,
+      avgGrossMargin: finalAvgGrossMargin
     };
-  }, [auditData]);
+  }, [auditData, totalOperatingExpenses2025]);
 
   const handleExport = () => {
     const csv = [
       ['2025 TAX AUDIT - COMPLETED PROJECTS'],
       [`Generated: ${format(new Date(), 'MMM d, yyyy')}`],
       [''],
-      ['Project Number', 'Project Name', 'Client', 'Completion Date', 'Contract Value', 'Revenue', 'COGS (Bills)', 'COGS (Materials)', 'Total COGS', 'Gross Profit', 'Gross Margin %'],
+      ['Project Number', 'Project Name', 'Client', 'Completion Date', 'Contract Value', 'Revenue', 'COGS (Bills)', 'COGS (Materials)', 'Project COGS', 'Gross Profit', 'Margin %'],
       ...auditData.map(p => [
         p.projectNumber || '-',
         p.projectName,
@@ -145,7 +167,9 @@ export default function TaxAudit2025() {
         p.grossMargin.toFixed(2) + '%'
       ]),
       [''],
-      ['TOTALS', '', '', '', '', totals.totalRevenue, totals.totalCogsFromBills, totals.totalCogsFromMaterials, totals.totalCOGS, totals.totalGrossProfit, totals.avgGrossMargin.toFixed(2) + '%']
+      ['PROJECT TOTALS', '', '', '', '', totals.totalRevenue, totals.totalCogsFromBills, totals.totalCogsFromMaterials, totals.totalCogsFromBills + totals.totalCogsFromMaterials, totals.totalRevenue - (totals.totalCogsFromBills + totals.totalCogsFromMaterials), '-'],
+      ['2025 OPERATING EXPENSES', '', '', '', '', '', '', '', totals.totalOperatingExpenses2025, '', ''],
+      ['GRAND TOTALS', '', '', '', '', totals.totalRevenue, '', '', totals.totalCOGS, totals.totalGrossProfit, totals.avgGrossMargin.toFixed(2) + '%']
     ].map(row => row.join(',')).join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -156,7 +180,7 @@ export default function TaxAudit2025() {
     a.click();
   };
 
-  const isLoading = projectsLoading || poLoading || billsLoading || materialCostsLoading;
+  const isLoading = projectsLoading || poLoading || billsLoading || materialCostsLoading || operatingExpensesLoading;
 
   if (isLoading) {
     return (
@@ -217,7 +241,7 @@ export default function TaxAudit2025() {
                 <p className="text-sm text-gray-600 mb-1">Total COGS</p>
                 <p className="text-3xl font-bold text-red-600">{formatCurrency(totals.totalCOGS)}</p>
                 <p className="text-xs text-gray-600 mt-1">
-                  Bills: {formatCurrency(totals.totalCogsFromBills)} + Materials: {formatCurrency(totals.totalCogsFromMaterials)}
+                  Bills: {formatCurrency(totals.totalCogsFromBills)} + Materials: {formatCurrency(totals.totalCogsFromMaterials)} + OpEx: {formatCurrency(totals.totalOperatingExpenses2025)}
                 </p>
               </div>
               <DollarSign className="w-8 h-8 text-red-600" />
@@ -258,7 +282,7 @@ export default function TaxAudit2025() {
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Revenue</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">COGS (Bills)</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">COGS (Materials)</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Total COGS</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Project COGS</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Gross Profit</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Margin %</th>
                 </tr>
@@ -301,10 +325,21 @@ export default function TaxAudit2025() {
               {auditData.length > 0 && (
                 <tfoot className="bg-[#E8E7DD] border-t-2 border-gray-400">
                   <tr>
-                    <td colSpan="4" className="px-4 py-3 text-right font-bold text-gray-900">TOTALS:</td>
+                    <td colSpan="4" className="px-4 py-3 text-right font-bold text-gray-900">PROJECT TOTALS:</td>
                     <td className="px-4 py-3 text-right font-bold text-green-600">{formatCurrency(totals.totalRevenue)}</td>
                     <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(totals.totalCogsFromBills)}</td>
                     <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(totals.totalCogsFromMaterials)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(totals.totalCogsFromBills + totals.totalCogsFromMaterials)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(totals.totalRevenue - (totals.totalCogsFromBills + totals.totalCogsFromMaterials))}</td>
+                    <td className="px-4 py-3 text-right font-bold text-gray-900">-</td>
+                  </tr>
+                  <tr>
+                    <td colSpan="7" className="px-4 py-3 text-right font-bold text-gray-900">2025 OPERATING EXPENSES:</td>
+                    <td className="px-4 py-3 text-right font-bold text-orange-600">{formatCurrency(totals.totalOperatingExpenses2025)}</td>
+                    <td colSpan="2"></td>
+                  </tr>
+                  <tr className="border-t-2 border-gray-500">
+                    <td colSpan="7" className="px-4 py-3 text-right font-bold text-gray-900">GRAND TOTALS:</td>
                     <td className="px-4 py-3 text-right font-bold text-red-600">{formatCurrency(totals.totalCOGS)}</td>
                     <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(totals.totalGrossProfit)}</td>
                     <td className="px-4 py-3 text-right font-bold text-[#0E351F]">{totals.avgGrossMargin.toFixed(1)}%</td>
@@ -325,7 +360,8 @@ export default function TaxAudit2025() {
             <li><strong>Revenue Recognition:</strong> All completed performance obligations linked to each project</li>
             <li><strong>COGS from Bills:</strong> All bills linked to each project (excluding Draft and Void status)</li>
             <li><strong>COGS from Materials:</strong> All approved material costs (including Tools and Fuel)</li>
-            <li><strong>Exclusions:</strong> Operating expenses (Salaries, Insurance, Professional Services) are not allocated to project-level COGS</li>
+            <li><strong>Operating Expenses:</strong> All 2025 operating expenses are included in the total COGS calculation as a separate line item</li>
+            <li><strong>Note:</strong> Operating expenses are not allocated to individual projects; they are shown as a separate total</li>
           </ul>
         </CardContent>
       </Card>
