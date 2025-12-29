@@ -54,7 +54,7 @@ export default function TaxAudit2025() {
     // Filter projects completed in 2025
     const completedProjects2025 = projects.filter(p => {
       if (!p.actual_completion_date) return false;
-      const completionYear = new Date(p.actual_completion_date).getFullYear();
+      const completionYear = new Date(p.actual_completion_date).getUTCFullYear();
       return completionYear === 2025;
     });
 
@@ -70,7 +70,7 @@ export default function TaxAudit2025() {
         b.project_id === project.id &&
         b.category && cogsCategories.includes(b.category) &&
         b.approved_at &&
-        new Date(b.approved_at).getFullYear() === 2025
+        new Date(b.approved_at).getUTCFullYear() === 2025
       );
       const cogsFromBills = projectBills.reduce((sum, b) => sum + (b.amount || 0), 0);
 
@@ -79,7 +79,7 @@ export default function TaxAudit2025() {
         m.project_id === project.id &&
         m.approved &&
         m.date &&
-        new Date(m.date).getFullYear() === 2025
+        new Date(m.date).getUTCFullYear() === 2025
       );
       const cogsFromMaterials = projectMaterialCosts.reduce((sum, m) => sum + (m.amount || 0), 0);
 
