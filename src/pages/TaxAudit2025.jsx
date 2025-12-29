@@ -51,28 +51,8 @@ export default function TaxAudit2025() {
       return [];
     }
 
-    // Debug logging
-    console.log('=== 2025 TAX AUDIT DEBUG ===');
-    console.log('Total projects:', projects.length);
-    console.log('Projects with Completed status:', projects.filter(p => p.status === 'Completed').length);
-    console.log('Projects with actual_completion_date:', projects.filter(p => p.actual_completion_date).length);
-    
-    projects.forEach(p => {
-      if (p.actual_completion_date) {
-        const year = new Date(p.actual_completion_date).getUTCFullYear();
-        console.log(`Project: ${p.name} | Completion Date: ${p.actual_completion_date} | Year: ${year}`);
-      }
-    });
-
-    // Filter projects completed in 2025
-    const completedProjects2025 = projects.filter(p => {
-      if (!p.actual_completion_date) return false;
-      const completionYear = new Date(p.actual_completion_date).getUTCFullYear();
-      return completionYear === 2025;
-    });
-    
-    console.log('Projects completed in 2025:', completedProjects2025.length);
-    console.log('===========================');
+    // Filter all completed projects for 2025 tax audit
+    const completedProjects2025 = projects.filter(p => p.status === 'Completed');
 
     const projectAudits = completedProjects2025.map(project => {
       // Calculate Revenue: Completed performance obligations for this project
@@ -195,7 +175,7 @@ export default function TaxAudit2025() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">2025 Tax Audit</h2>
           <p className="text-gray-600 mt-1">
-            Gross profit analysis for projects completed in 2025 (by actual completion date)
+            Gross profit analysis for all completed projects (2025 tax year)
           </p>
         </div>
         <Button
@@ -290,7 +270,7 @@ export default function TaxAudit2025() {
                 {auditData.length === 0 ? (
                   <tr>
                     <td colSpan="10" className="px-6 py-8 text-center text-gray-500">
-                      No projects were completed in 2025 (based on actual completion date)
+                      No completed projects found
                     </td>
                   </tr>
                 ) : (
@@ -344,7 +324,7 @@ export default function TaxAudit2025() {
         <CardContent className="p-6">
           <h3 className="font-semibold text-blue-900 mb-2">Audit Methodology</h3>
           <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-            <li><strong>Projects Included:</strong> Only projects with an actual completion date in 2025</li>
+            <li><strong>Projects Included:</strong> All projects with status 'Completed'</li>
             <li><strong>Revenue Recognition:</strong> All completed performance obligations linked to each project</li>
             <li><strong>COGS from Bills:</strong> All bills approved in 2025 with COGS categories (Subcontractor, Materials, Labor, Equipment, etc.)</li>
             <li><strong>COGS from Materials:</strong> All approved material costs (including Tools and Fuel) dated in 2025</li>
