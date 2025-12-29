@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -186,8 +185,9 @@ export default function Dashboard() {
     t.finish_date && new Date(t.finish_date) < today && t.percent_complete < 100
   );
 
+  // Include Lead, Qualified, Bidding, AND Awarded opportunities (not yet converted to projects)
   const activeOpportunities = opportunities.filter(o =>
-    ['Lead', 'Qualified', 'Bidding'].includes(o.stage)
+    ['Lead', 'Qualified', 'Bidding', 'Awarded'].includes(o.stage) && o.stage !== 'Under Contract'
   );
 
   const pipelineValue = activeOpportunities.reduce((sum, o) =>
@@ -333,7 +333,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm text-blue-100 mb-1">Pipeline Value</p>
                 <p className="text-3xl font-bold">{formatCurrency(pipelineValue)}</p>
-                <p className="text-xs text-blue-100 mt-1">{opportunities.filter(o => ['Qualified', 'Bidding', 'Awarded'].includes(o.stage)).length} opportunities</p>
+                <p className="text-xs text-blue-100 mt-1">{activeOpportunities.length} opportunities</p>
               </div>
               <div className="p-3 bg-white/20 backdrop-blur-sm rounded-lg">
                 <Briefcase className="w-6 h-6 text-white" />
