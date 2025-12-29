@@ -40,6 +40,7 @@ const navigationItems = [
   { title: "Schedule", url: "Schedule", icon: Calendar },
   { title: "Bills/Invoices", url: "BillsInvoices", icon: DollarSign },
   { title: "Finance", url: "Finance", icon: DollarSign },
+  { title: "2025 Tax Audit", url: "TaxAudit2025", icon: FileText },
   { title: "Companies", url: "Companies", icon: Building2 },
   { title: "Photos", url: "Photos", icon: Image },
   { title: "Risks", url: "Risks", icon: AlertTriangle },
