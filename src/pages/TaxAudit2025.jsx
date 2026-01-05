@@ -3,12 +3,13 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, FileText, TrendingUp, DollarSign } from "lucide-react";
 import { formatCurrency, formatDate } from "../components/shared/DateFormatter";
 import { format } from "date-fns";
 
 export default function TaxAudit2025() {
+  const [selectedYear, setSelectedYear] = React.useState('2025');
   const { data: projects = [], isLoading: projectsLoading } = useQuery({
     queryKey: ['projects'],
     queryFn: () => base44.entities.Project.list(),
@@ -292,96 +293,95 @@ export default function TaxAudit2025() {
     );
   }
 
+  const currentAuditData = selectedYear === '2025' ? auditData2025 : auditData2026;
+  const currentTotals = selectedYear === '2025' ? totals2025 : totals2026;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Tax Audit</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Tax Audits</h2>
           <p className="text-gray-600 mt-1">
             Financial analysis by tax year
           </p>
         </div>
+        <div className="flex items-center gap-3">
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-48 bg-white border-gray-300">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="2025">2025 (Completed)</SelectItem>
+              <SelectItem value="2026">2026 (Ongoing)</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={() => handleExport(selectedYear, currentAuditData, currentTotals)}
+            className="bg-[#0E351F] hover:bg-[#3B5B48] text-white"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
-      <Tabs defaultValue="2025" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="2025">2025 (Completed)</TabsTrigger>
-          <TabsTrigger value="2026">2026 (Ongoing)</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="2025" className="space-y-6 mt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">2025 Tax Year</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Completed projects - gross profit analysis
-              </p>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card className="bg-white border-gray-200">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">{selectedYear === '2025' ? 'Projects Completed' : 'Projects'}</p>
+                <p className="text-3xl font-bold text-gray-900">{currentAuditData.length}</p>
+              </div>
+              <FileText className="w-8 h-8 text-blue-600" />
             </div>
-            <Button
-              onClick={() => handleExport('2025', auditData2025, totals2025)}
-              className="bg-[#0E351F] hover:bg-[#3B5B48] text-white"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Export CSV
-            </Button>
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card className="bg-white border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Projects Completed</p>
-                    <p className="text-3xl font-bold text-gray-900">{auditData2025.length}</p>
-                  </div>
-                  <FileText className="w-8 h-8 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
+        <Card className="bg-white border-gray-200">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">{selectedYear === '2025' ? 'Total Revenue' : 'Revenue (To Date)'}</p>
+                <p className="text-3xl font-bold text-green-600">{formatCurrency(currentTotals.totalRevenue)}</p>
+              </div>
+              <DollarSign className="w-8 h-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
 
-            <Card className="bg-white border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Total Revenue</p>
-                    <p className="text-3xl font-bold text-green-600">{formatCurrency(totals2025.totalRevenue)}</p>
-                  </div>
-                  <DollarSign className="w-8 h-8 text-green-600" />
-                </div>
-              </CardContent>
-            </Card>
+        <Card className="bg-white border-gray-200">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">{selectedYear === '2025' ? 'Total COGS' : 'COGS (To Date)'}</p>
+                <p className="text-3xl font-bold text-red-600">{formatCurrency(currentTotals.totalCOGS)}</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  Bills: {formatCurrency(currentTotals.totalCogsFromBills)} + Materials: {formatCurrency(currentTotals.totalCogsFromMaterials)}
+                  {selectedYear === '2025' && ` + OpEx: ${formatCurrency(currentTotals.totalOperatingExpenses2025)}`}
+                </p>
+              </div>
+              <DollarSign className="w-8 h-8 text-red-600" />
+            </div>
+          </CardContent>
+        </Card>
 
-            <Card className="bg-white border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Total COGS</p>
-                    <p className="text-3xl font-bold text-red-600">{formatCurrency(totals2025.totalCOGS)}</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Bills: {formatCurrency(totals2025.totalCogsFromBills)} + Materials: {formatCurrency(totals2025.totalCogsFromMaterials)} + OpEx: {formatCurrency(totals2025.totalOperatingExpenses2025)}
-                    </p>
-                  </div>
-                  <DollarSign className="w-8 h-8 text-red-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Total Gross Profit</p>
-                    <p className="text-3xl font-bold text-[#0E351F]">{formatCurrency(totals2025.totalGrossProfit)}</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Avg Margin: {totals2025.avgGrossMargin.toFixed(1)}%
-                    </p>
-                  </div>
-                  <TrendingUp className="w-8 h-8 text-[#0E351F]" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        <Card className="bg-white border-gray-200">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">{selectedYear === '2025' ? 'Total Gross Profit' : 'Gross Profit (To Date)'}</p>
+                <p className="text-3xl font-bold text-[#0E351F]">{formatCurrency(currentTotals.totalGrossProfit)}</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  {selectedYear === '2025' ? 'Avg ' : ''}Margin: {currentTotals.avgGrossMargin.toFixed(1)}%
+                </p>
+              </div>
+              <TrendingUp className="w-8 h-8 text-[#0E351F]" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Detailed Table */}
       <Card className="bg-white border-gray-200">
@@ -395,7 +395,7 @@ export default function TaxAudit2025() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-700">Project</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-700">Client</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700">Completed</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700">{selectedYear === '2025' ? 'Completed' : 'Status'}</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Contract Value</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Revenue</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">COGS (Bills)</th>
@@ -406,14 +406,14 @@ export default function TaxAudit2025() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {auditData2025.length === 0 ? (
+                {currentAuditData.length === 0 ? (
                   <tr>
                     <td colSpan="10" className="px-6 py-8 text-center text-gray-500">
-                      No completed projects found
+                      {selectedYear === '2025' ? 'No completed projects found' : 'No ongoing projects found'}
                     </td>
                   </tr>
                 ) : (
-                  auditData2025.map((project) => (
+                  currentAuditData.map((project) => (
                     <tr key={project.projectId} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <div>
@@ -424,7 +424,19 @@ export default function TaxAudit2025() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-gray-900">{project.clientName}</td>
-                      <td className="px-4 py-3 text-gray-900">{formatDate(project.completionDate)}</td>
+                      <td className="px-4 py-3">
+                        {selectedYear === '2025' ? (
+                          <span className="text-gray-900">{formatDate(project.completionDate)}</span>
+                        ) : (
+                          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                            project.status === 'Active' ? 'bg-green-100 text-green-800' :
+                            project.status === 'Planning' ? 'bg-blue-100 text-blue-800' :
+                            'bg-orange-100 text-orange-800'
+                          }`}>
+                            {project.status}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(project.contractValue)}</td>
                       <td className="px-4 py-3 text-right font-semibold text-green-600">{formatCurrency(project.revenue)}</td>
                       <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(project.cogsFromBills)}</td>
@@ -440,28 +452,40 @@ export default function TaxAudit2025() {
                   ))
                 )}
               </tbody>
-              {auditData2025.length > 0 && (
+              {currentAuditData.length > 0 && (
                 <tfoot className="bg-[#E8E7DD] border-t-2 border-gray-400">
                   <tr>
-                    <td colSpan="4" className="px-4 py-3 text-right font-bold text-gray-900">PROJECT TOTALS:</td>
-                    <td className="px-4 py-3 text-right font-bold text-green-600">{formatCurrency(totals2025.totalRevenue)}</td>
-                    <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(totals2025.totalCogsFromBills)}</td>
-                    <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(totals2025.totalCogsFromMaterials)}</td>
-                    <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(totals2025.totalCogsFromBills + totals2025.totalCogsFromMaterials)}</td>
-                    <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(totals2025.totalRevenue - (totals2025.totalCogsFromBills + totals2025.totalCogsFromMaterials))}</td>
+                    <td colSpan="4" className="px-4 py-3 text-right font-bold text-gray-900">{selectedYear === '2025' ? 'PROJECT TOTALS:' : 'TOTALS:'}</td>
+                    <td className="px-4 py-3 text-right font-bold text-green-600">{formatCurrency(currentTotals.totalRevenue)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(currentTotals.totalCogsFromBills)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(currentTotals.totalCogsFromMaterials)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(currentTotals.totalCogsFromBills + currentTotals.totalCogsFromMaterials)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(currentTotals.totalRevenue - (currentTotals.totalCogsFromBills + currentTotals.totalCogsFromMaterials))}</td>
                     <td className="px-4 py-3 text-right font-bold text-gray-900">-</td>
                   </tr>
-                  <tr>
-                    <td colSpan="7" className="px-4 py-3 text-right font-bold text-gray-900">2025 OPERATING EXPENSES:</td>
-                    <td className="px-4 py-3 text-right font-bold text-orange-600">{formatCurrency(totals2025.totalOperatingExpenses2025)}</td>
-                    <td colSpan="2"></td>
-                  </tr>
-                  <tr className="border-t-2 border-gray-500">
-                    <td colSpan="7" className="px-4 py-3 text-right font-bold text-gray-900">GRAND TOTALS:</td>
-                    <td className="px-4 py-3 text-right font-bold text-red-600">{formatCurrency(totals2025.totalCOGS)}</td>
-                    <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(totals2025.totalGrossProfit)}</td>
-                    <td className="px-4 py-3 text-right font-bold text-[#0E351F]">{totals2025.avgGrossMargin.toFixed(1)}%</td>
-                  </tr>
+                  {selectedYear === '2025' && (
+                    <>
+                      <tr>
+                        <td colSpan="7" className="px-4 py-3 text-right font-bold text-gray-900">2025 OPERATING EXPENSES:</td>
+                        <td className="px-4 py-3 text-right font-bold text-orange-600">{formatCurrency(currentTotals.totalOperatingExpenses2025)}</td>
+                        <td colSpan="2"></td>
+                      </tr>
+                      <tr className="border-t-2 border-gray-500">
+                        <td colSpan="7" className="px-4 py-3 text-right font-bold text-gray-900">GRAND TOTALS:</td>
+                        <td className="px-4 py-3 text-right font-bold text-red-600">{formatCurrency(currentTotals.totalCOGS)}</td>
+                        <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(currentTotals.totalGrossProfit)}</td>
+                        <td className="px-4 py-3 text-right font-bold text-[#0E351F]">{currentTotals.avgGrossMargin.toFixed(1)}%</td>
+                      </tr>
+                    </>
+                  )}
+                  {selectedYear === '2026' && (
+                    <tr className="border-t-2 border-gray-500">
+                      <td colSpan="7" className="px-4 py-3 text-right font-bold text-gray-900">TOTALS:</td>
+                      <td className="px-4 py-3 text-right font-bold text-red-600">{formatCurrency(currentTotals.totalCOGS)}</td>
+                      <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(currentTotals.totalGrossProfit)}</td>
+                      <td className="px-4 py-3 text-right font-bold text-[#0E351F]">{currentTotals.avgGrossMargin.toFixed(1)}%</td>
+                    </tr>
+                  )}
                 </tfoot>
               )}
             </table>
@@ -469,194 +493,30 @@ export default function TaxAudit2025() {
         </CardContent>
       </Card>
 
-          {/* Notes */}
-          <Card className="bg-blue-50 border-blue-200">
-            <CardContent className="p-6">
-              <h3 className="font-semibold text-blue-900 mb-2">2025 Audit Methodology</h3>
-              <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-                <li><strong>Projects Included:</strong> All projects with status 'Completed'</li>
-                <li><strong>Revenue Recognition:</strong> All completed performance obligations linked to each project</li>
-                <li><strong>COGS from Bills:</strong> All bills linked to each project (excluding Draft and Void status)</li>
-                <li><strong>COGS from Materials:</strong> All approved material costs (including Tools and Fuel)</li>
-                <li><strong>Operating Expenses:</strong> All 2025 operating expenses are included in the total COGS calculation as a separate line item</li>
-                <li><strong>Note:</strong> Operating expenses are not allocated to individual projects; they are shown as a separate total</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="2026" className="space-y-6 mt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">2026 Tax Year</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Ongoing & future projects - not completed in 2025
-              </p>
-            </div>
-            <Button
-              onClick={() => handleExport('2026', auditData2026, totals2026)}
-              className="bg-[#0E351F] hover:bg-[#3B5B48] text-white"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Export CSV
-            </Button>
-          </div>
-
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card className="bg-white border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Projects</p>
-                    <p className="text-3xl font-bold text-gray-900">{auditData2026.length}</p>
-                  </div>
-                  <FileText className="w-8 h-8 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Total Revenue (To Date)</p>
-                    <p className="text-3xl font-bold text-green-600">{formatCurrency(totals2026.totalRevenue)}</p>
-                  </div>
-                  <DollarSign className="w-8 h-8 text-green-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Total COGS (To Date)</p>
-                    <p className="text-3xl font-bold text-red-600">{formatCurrency(totals2026.totalCOGS)}</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Bills: {formatCurrency(totals2026.totalCogsFromBills)} + Materials: {formatCurrency(totals2026.totalCogsFromMaterials)}
-                    </p>
-                  </div>
-                  <DollarSign className="w-8 h-8 text-red-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Gross Profit (To Date)</p>
-                    <p className="text-3xl font-bold text-[#0E351F]">{formatCurrency(totals2026.totalGrossProfit)}</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Margin: {totals2026.avgGrossMargin.toFixed(1)}%
-                    </p>
-                  </div>
-                  <TrendingUp className="w-8 h-8 text-[#0E351F]" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Detailed Table */}
-          <Card className="bg-white border-gray-200">
-            <CardHeader className="border-b border-gray-300">
-              <CardTitle>Project-by-Project Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-[#F5F4F3] border-b border-gray-300">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700">Project</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700">Client</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700">Status</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Contract Value</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Revenue</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">COGS (Bills)</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">COGS (Materials)</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Project COGS</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Gross Profit</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700">Margin %</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {auditData2026.length === 0 ? (
-                      <tr>
-                        <td colSpan="10" className="px-6 py-8 text-center text-gray-500">
-                          No ongoing projects found
-                        </td>
-                      </tr>
-                    ) : (
-                      auditData2026.map((project) => (
-                        <tr key={project.projectId} className="hover:bg-gray-50">
-                          <td className="px-4 py-3">
-                            <div>
-                              <p className="font-medium text-gray-900">{project.projectName}</p>
-                              {project.projectNumber && (
-                                <p className="text-xs text-gray-600">{project.projectNumber}</p>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-gray-900">{project.clientName}</td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                              project.status === 'Active' ? 'bg-green-100 text-green-800' :
-                              project.status === 'Planning' ? 'bg-blue-100 text-blue-800' :
-                              'bg-orange-100 text-orange-800'
-                            }`}>
-                              {project.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(project.contractValue)}</td>
-                          <td className="px-4 py-3 text-right font-semibold text-green-600">{formatCurrency(project.revenue)}</td>
-                          <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(project.cogsFromBills)}</td>
-                          <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(project.cogsFromMaterials)}</td>
-                          <td className="px-4 py-3 text-right font-semibold text-red-600">{formatCurrency(project.totalCOGS)}</td>
-                          <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(project.grossProfit)}</td>
-                          <td className="px-4 py-3 text-right">
-                            <span className={`font-semibold ${project.grossMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {project.grossMargin.toFixed(1)}%
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                  {auditData2026.length > 0 && (
-                    <tfoot className="bg-[#E8E7DD] border-t-2 border-gray-400">
-                      <tr>
-                        <td colSpan="4" className="px-4 py-3 text-right font-bold text-gray-900">TOTALS:</td>
-                        <td className="px-4 py-3 text-right font-bold text-green-600">{formatCurrency(totals2026.totalRevenue)}</td>
-                        <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(totals2026.totalCogsFromBills)}</td>
-                        <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(totals2026.totalCogsFromMaterials)}</td>
-                        <td className="px-4 py-3 text-right font-bold text-red-600">{formatCurrency(totals2026.totalCOGS)}</td>
-                        <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(totals2026.totalGrossProfit)}</td>
-                        <td className="px-4 py-3 text-right font-bold text-[#0E351F]">{totals2026.avgGrossMargin.toFixed(1)}%</td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Notes */}
-          <Card className="bg-blue-50 border-blue-200">
-            <CardContent className="p-6">
-              <h3 className="font-semibold text-blue-900 mb-2">2026 Report Methodology</h3>
-              <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-                <li><strong>Projects Included:</strong> All projects NOT completed in 2025 (Active, Planning, On Hold, or completed after 2025)</li>
-                <li><strong>Revenue Recognition:</strong> Completed performance obligations to date</li>
-                <li><strong>COGS Calculation:</strong> All bills and approved material costs incurred to date</li>
-                <li><strong>Note:</strong> This is a forward-looking report showing work in progress and future projects</li>
-                <li><strong>Important:</strong> Final profit margins will be determined upon project completion</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {/* Notes */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="p-6">
+          <h3 className="font-semibold text-blue-900 mb-2">{selectedYear} Report Methodology</h3>
+          {selectedYear === '2025' ? (
+            <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+              <li><strong>Projects Included:</strong> All projects with status 'Completed'</li>
+              <li><strong>Revenue Recognition:</strong> All completed performance obligations linked to each project</li>
+              <li><strong>COGS from Bills:</strong> All bills linked to each project (excluding Draft and Void status)</li>
+              <li><strong>COGS from Materials:</strong> All approved material costs (including Tools and Fuel)</li>
+              <li><strong>Operating Expenses:</strong> All 2025 operating expenses are included in the total COGS calculation as a separate line item</li>
+              <li><strong>Note:</strong> Operating expenses are not allocated to individual projects; they are shown as a separate total</li>
+            </ul>
+          ) : (
+            <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+              <li><strong>Projects Included:</strong> All projects NOT completed in 2025 (Active, Planning, On Hold, or completed after 2025)</li>
+              <li><strong>Revenue Recognition:</strong> Completed performance obligations to date</li>
+              <li><strong>COGS Calculation:</strong> All bills and approved material costs incurred to date</li>
+              <li><strong>Note:</strong> This is a forward-looking report showing work in progress and future projects</li>
+              <li><strong>Important:</strong> Final profit margins will be determined upon project completion</li>
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
