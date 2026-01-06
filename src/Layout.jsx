@@ -38,6 +38,7 @@ const navigationItems = [
   { title: "Projects", url: "Projects", icon: FolderOpen },
   { title: "Estimates", url: "Estimates", icon: FileText },
   { title: "Schedule", url: "Schedule", icon: Calendar },
+  { title: "Weekly Schedule", url: "WeeklySchedule", icon: Calendar },
   { title: "Bills/Invoices", url: "BillsInvoices", icon: DollarSign },
   { title: "Finance", url: "Finance", icon: DollarSign },
   { title: "Tax Audits", url: "TaxAudit2025", icon: FileText },
