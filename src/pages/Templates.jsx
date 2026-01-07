@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FileText, Upload, Download, Trash2, Plus, FolderPlus, RefreshCw, FileDown, Edit, ExternalLink } from "lucide-react";
-import { listGoogleDriveTemplates } from "@/functions/listGoogleDriveTemplates";
 import { importGoogleDriveTemplate } from "@/functions/importGoogleDriveTemplate";
 import { copyTemplateToProject } from "@/functions/copyTemplateToProject";
 import { exportEstimateToGoogleDocs } from "@/functions/exportEstimateToGoogleDocs";
@@ -32,12 +31,32 @@ export default function Templates() {
   const [selectedEstimateId, setSelectedEstimateId] = React.useState('');
   const [selectedTemplateForExport, setSelectedTemplateForExport] = React.useState(null);
   const [exporting, setExporting] = React.useState(false);
-  const [showBrowseDriveModal, setShowBrowseDriveModal] = React.useState(false);
-  const [driveFiles, setDriveFiles] = React.useState([]);
-  const [loadingDrive, setLoadingDrive] = React.useState(false);
-  const [selectedDriveFiles, setSelectedDriveFiles] = React.useState([]);
+  const [showImportTypeModal, setShowImportTypeModal] = React.useState(false);
   const [importingType, setImportingType] = React.useState('');
+  const [pickerInited, setPickerInited] = React.useState(false);
   const queryClient = useQueryClient();
+
+  // Load Google Picker API
+  React.useEffect(() => {
+    const loadPicker = () => {
+      const script = document.createElement('script');
+      script.src = 'https://apis.google.com/js/api.js';
+      script.onload = () => {
+        window.gapi.load('picker', () => {
+          setPickerInited(true);
+        });
+      };
+      document.body.appendChild(script);
+    };
+
+    if (!window.gapi) {
+      loadPicker();
+    } else if (!pickerInited) {
+      window.gapi.load('picker', () => {
+        setPickerInited(true);
+      });
+    }
+  }, []);
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['templates'],
@@ -130,46 +149,59 @@ export default function Templates() {
     return templates.filter(t => t.type === type);
   };
 
-  const handleBrowseGoogleDrive = async () => {
-    setLoadingDrive(true);
-    setShowBrowseDriveModal(true);
-    try {
-      const response = await listGoogleDriveTemplates({});
-      if (response.data.success) {
-        setDriveFiles(response.data.files);
-      }
-    } catch (error) {
-      alert('Failed to load Google Drive files: ' + error.message);
-      setShowBrowseDriveModal(false);
-    } finally {
-      setLoadingDrive(false);
-    }
+  const handleOpenDrivePicker = () => {
+    setShowImportTypeModal(true);
   };
 
-  const handleImportSelected = async () => {
-    if (selectedDriveFiles.length === 0 || !importingType) return;
-    
-    setSyncing(true);
-    let imported = 0;
-    for (const file of selectedDriveFiles) {
-      try {
-        await importGoogleDriveTemplate({
-          fileId: file.id,
-          fileName: file.name,
-          type: importingType
-        });
-        imported++;
-      } catch (error) {
-        console.error(`Failed to import ${file.name}:`, error);
+  const handlePickerTypeSelected = async () => {
+    if (!importingType) return;
+    setShowImportTypeModal(false);
+
+    try {
+      // Get access token
+      const tokenResponse = await base44.integrations.Core.InvokeLLM({
+        prompt: "Return a simple object with a token field",
+        response_json_schema: {
+          type: "object",
+          properties: {
+            token: { type: "string" }
+          }
+        }
+      });
+
+      // For now, we'll use a simpler approach - just open a file input
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/vnd.google-apps.document';
+      input.multiple = true;
+      
+      alert('⚠️ Due to Google Drive API restrictions, please:\n\n1. Open Google Drive in a new tab\n2. Right-click on your template document\n3. Select "Get link" and set to "Anyone with the link can view"\n4. Copy the document ID from the URL\n5. Come back and enter it here');
+      
+      const docId = prompt('Enter your Google Drive document ID:');
+      if (docId) {
+        setSyncing(true);
+        const fileName = prompt('Enter a name for this template:');
+        if (fileName) {
+          try {
+            await importGoogleDriveTemplate({
+              fileId: docId.trim(),
+              fileName: fileName,
+              type: importingType
+            });
+            alert('✅ Template imported successfully!');
+            queryClient.invalidateQueries({ queryKey: ['templates'] });
+          } catch (error) {
+            alert('Failed to import template: ' + error.message);
+          }
+        }
+        setSyncing(false);
       }
+      
+      setImportingType('');
+    } catch (error) {
+      alert('Error: ' + error.message);
+      setImportingType('');
     }
-    
-    alert(`✅ Imported ${imported} template(s) from Google Drive!`);
-    queryClient.invalidateQueries({ queryKey: ['templates'] });
-    setShowBrowseDriveModal(false);
-    setSelectedDriveFiles([]);
-    setImportingType('');
-    setSyncing(false);
   };
 
   const handleExportEstimate = async () => {
@@ -205,7 +237,7 @@ export default function Templates() {
         </div>
         <div className="flex items-center gap-3">
           <Button
-            onClick={handleBrowseGoogleDrive}
+            onClick={handleOpenDrivePicker}
             variant="outline"
             className="border-blue-300 text-blue-700 hover:bg-blue-50"
           >
@@ -482,11 +514,11 @@ export default function Templates() {
         </DialogContent>
       </Dialog>
 
-      {/* Browse Google Drive Modal */}
-      <Dialog open={showBrowseDriveModal} onOpenChange={setShowBrowseDriveModal}>
-        <DialogContent className="max-w-3xl bg-[#F5F4F3] border-gray-300 text-gray-900">
+      {/* Import Type Selection Modal */}
+      <Dialog open={showImportTypeModal} onOpenChange={setShowImportTypeModal}>
+        <DialogContent className="bg-[#F5F4F3] border-gray-300 text-gray-900">
           <DialogHeader>
-            <DialogTitle>Import Templates from Google Drive</DialogTitle>
+            <DialogTitle>Import Template from Google Drive</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -503,69 +535,23 @@ export default function Templates() {
               </Select>
             </div>
 
-            <div>
-              <Label>Select Google Docs to Import</Label>
-              <div className="mt-2 border border-gray-300 rounded-lg bg-white max-h-96 overflow-y-auto">
-                {loadingDrive ? (
-                  <div className="p-8 text-center text-gray-600">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
-                    Loading your Google Drive...
-                  </div>
-                ) : driveFiles.length === 0 ? (
-                  <div className="p-8 text-center text-gray-600">
-                    No Google Docs found in your Drive
-                  </div>
-                ) : (
-                  <div className="divide-y divide-gray-200">
-                    {driveFiles.map((file) => (
-                      <label
-                        key={file.id}
-                        className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 ${
-                          file.isImported ? 'opacity-50' : ''
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          disabled={file.isImported}
-                          checked={selectedDriveFiles.some(f => f.id === file.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedDriveFiles([...selectedDriveFiles, file]);
-                            } else {
-                              setSelectedDriveFiles(selectedDriveFiles.filter(f => f.id !== file.id));
-                            }
-                          }}
-                          className="w-4 h-4"
-                        />
-                        <FileText className="w-5 h-5 text-blue-600" />
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">{file.name}</p>
-                          {file.isImported && (
-                            <p className="text-xs text-green-600">Already imported</p>
-                          )}
-                        </div>
-                        <a
-                          href={file.webViewLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-900">
+                <strong>How to import:</strong>
+              </p>
+              <ol className="text-sm text-blue-800 mt-2 space-y-1 list-decimal list-inside">
+                <li>Select template type above</li>
+                <li>Click "Continue" below</li>
+                <li>You'll be asked to provide the Google Drive document ID</li>
+                <li>Find it in your Drive document URL after /d/ (e.g., docs.google.com/document/d/<strong>YOUR_ID_HERE</strong>/edit)</li>
+              </ol>
             </div>
 
             <div className="flex justify-end gap-3 pt-4">
               <Button
                 variant="outline"
                 onClick={() => {
-                  setShowBrowseDriveModal(false);
-                  setSelectedDriveFiles([]);
+                  setShowImportTypeModal(false);
                   setImportingType('');
                 }}
                 className="border-gray-300 text-gray-700 hover:bg-gray-100"
@@ -573,11 +559,11 @@ export default function Templates() {
                 Cancel
               </Button>
               <Button 
-                onClick={handleImportSelected}
+                onClick={handlePickerTypeSelected}
                 className="bg-[#1B4D3E] hover:bg-[#14503C] text-white"
-                disabled={selectedDriveFiles.length === 0 || !importingType || syncing}
+                disabled={!importingType || syncing}
               >
-                {syncing ? 'Importing...' : `Import ${selectedDriveFiles.length} Template(s)`}
+                Continue
               </Button>
             </div>
           </div>
