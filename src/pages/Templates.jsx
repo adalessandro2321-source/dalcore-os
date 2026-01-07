@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { FileText, Upload, Download, Trash2, Plus, FolderPlus, RefreshCw, FileDown } from "lucide-react";
-import { syncGoogleDriveTemplates } from "@/functions/syncGoogleDriveTemplates";
+import { FileText, Upload, Download, Trash2, Plus, FolderPlus, RefreshCw, FileDown, Edit, ExternalLink } from "lucide-react";
+import { listGoogleDriveTemplates } from "@/functions/listGoogleDriveTemplates";
+import { importGoogleDriveTemplate } from "@/functions/importGoogleDriveTemplate";
+import { copyTemplateToProject } from "@/functions/copyTemplateToProject";
 import { exportEstimateToGoogleDocs } from "@/functions/exportEstimateToGoogleDocs";
 import {
   Dialog,
@@ -30,6 +32,11 @@ export default function Templates() {
   const [selectedEstimateId, setSelectedEstimateId] = React.useState('');
   const [selectedTemplateForExport, setSelectedTemplateForExport] = React.useState(null);
   const [exporting, setExporting] = React.useState(false);
+  const [showBrowseDriveModal, setShowBrowseDriveModal] = React.useState(false);
+  const [driveFiles, setDriveFiles] = React.useState([]);
+  const [loadingDrive, setLoadingDrive] = React.useState(false);
+  const [selectedDriveFiles, setSelectedDriveFiles] = React.useState([]);
+  const [importingType, setImportingType] = React.useState('');
   const queryClient = useQueryClient();
 
   const { data: templates = [], isLoading } = useQuery({
@@ -86,38 +93,25 @@ export default function Templates() {
     setAssigning(true);
 
     try {
-      const project = projects.find(p => p.id === selectedProjectId);
-      if (!project) throw new Error('Project not found');
-
-      // Map template type to document folder
-      const folderMapping = {
-        'Proposal': 'Proposals',
-        'Contract': 'Contracts',
-        'Invoice': 'Invoices',
-        'Change Order': 'Change Orders',
-        'Estimate': 'Estimates',
-        'Quote': 'Quotes',
-        'Report': 'Correspondences'
-      };
-
-      const folder = folderMapping[selectedTemplate.type] || 'Documents';
-
-      // Create document record in the project
-      await base44.entities.Document.create({
-        name: `${selectedTemplate.name} - ${project.name}`,
-        project_id: selectedProjectId,
-        folder: folder,
-        file_url: selectedTemplate.file_url,
-        type: selectedTemplate.type,
-        description: `Created from template: ${selectedTemplate.name}`,
+      const response = await copyTemplateToProject({
+        templateId: selectedTemplate.id,
+        projectId: selectedProjectId
       });
 
-      queryClient.invalidateQueries({ queryKey: ['documents', selectedProjectId] });
-      setShowUseTemplateModal(false);
-      setSelectedTemplate(null);
-      setSelectedProjectId('');
+      if (response.data.success) {
+        alert('✅ Template copied to project!');
+        queryClient.invalidateQueries({ queryKey: ['documents', selectedProjectId] });
+        setShowUseTemplateModal(false);
+        setSelectedTemplate(null);
+        setSelectedProjectId('');
+        
+        // Open the new document
+        if (response.data.documentUrl) {
+          window.open(response.data.documentUrl, '_blank');
+        }
+      }
     } catch (error) {
-      console.error('Template assignment error:', error);
+      alert('Failed to copy template: ' + error.message);
     }
     setAssigning(false);
   };
@@ -136,19 +130,46 @@ export default function Templates() {
     return templates.filter(t => t.type === type);
   };
 
-  const handleSyncGoogleDrive = async () => {
-    setSyncing(true);
+  const handleBrowseGoogleDrive = async () => {
+    setLoadingDrive(true);
+    setShowBrowseDriveModal(true);
     try {
-      const response = await syncGoogleDriveTemplates({ folderId: null });
+      const response = await listGoogleDriveTemplates({});
       if (response.data.success) {
-        alert(`✅ Synced ${response.data.synced} templates from Google Drive!`);
-        queryClient.invalidateQueries({ queryKey: ['templates'] });
+        setDriveFiles(response.data.files);
       }
     } catch (error) {
-      alert('Failed to sync templates: ' + error.message);
+      alert('Failed to load Google Drive files: ' + error.message);
+      setShowBrowseDriveModal(false);
     } finally {
-      setSyncing(false);
+      setLoadingDrive(false);
     }
+  };
+
+  const handleImportSelected = async () => {
+    if (selectedDriveFiles.length === 0 || !importingType) return;
+    
+    setSyncing(true);
+    let imported = 0;
+    for (const file of selectedDriveFiles) {
+      try {
+        await importGoogleDriveTemplate({
+          fileId: file.id,
+          fileName: file.name,
+          type: importingType
+        });
+        imported++;
+      } catch (error) {
+        console.error(`Failed to import ${file.name}:`, error);
+      }
+    }
+    
+    alert(`✅ Imported ${imported} template(s) from Google Drive!`);
+    queryClient.invalidateQueries({ queryKey: ['templates'] });
+    setShowBrowseDriveModal(false);
+    setSelectedDriveFiles([]);
+    setImportingType('');
+    setSyncing(false);
   };
 
   const handleExportEstimate = async () => {
@@ -184,22 +205,12 @@ export default function Templates() {
         </div>
         <div className="flex items-center gap-3">
           <Button
-            onClick={handleSyncGoogleDrive}
-            disabled={syncing}
+            onClick={handleBrowseGoogleDrive}
             variant="outline"
             className="border-blue-300 text-blue-700 hover:bg-blue-50"
           >
-            {syncing ? (
-              <>
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                Syncing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Sync from Google Drive
-              </>
-            )}
+            <Download className="w-4 h-4 mr-2" />
+            Import from Google Drive
           </Button>
           <Button
             onClick={() => setShowCreateModal(true)}
@@ -247,19 +258,22 @@ export default function Templates() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {template.type === 'Estimate' && template.google_drive_id && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedTemplateForExport(template);
-                                setShowExportModal(true);
-                              }}
-                              className="text-purple-700 hover:text-purple-900 hover:bg-purple-50"
+                          {template.google_drive_id && (
+                            <a
+                              href={template.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              <FileDown className="w-4 h-4 mr-2" />
-                              Export Estimate
-                            </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-blue-700 hover:text-blue-900 hover:bg-blue-50"
+                              >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit in Google Docs
+                              </Button>
+                            </a>
                           )}
                           <Button
                             variant="ghost"
@@ -271,7 +285,7 @@ export default function Templates() {
                             className="text-[#2A6B5A] hover:text-[#1B4D3E] hover:bg-[#1B4D3E]/10"
                           >
                             <FolderPlus className="w-4 h-4 mr-2" />
-                            Use in Project
+                            Copy to Project
                           </Button>
                           <a
                             href={template.file_url}
@@ -429,7 +443,10 @@ export default function Templates() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-600 mt-2">
-                This template will be added to the project's <span className="font-medium text-[#2A6B5A]">
+                {selectedTemplate?.google_drive_id ? 
+                  'A copy will be created in your Google Drive and' : 
+                  'This template will be'
+                } added to the project's <span className="font-medium text-[#2A6B5A]">
                   {selectedTemplate?.type === 'Proposal' ? 'Proposals' :
                    selectedTemplate?.type === 'Contract' ? 'Contracts' :
                    selectedTemplate?.type === 'Invoice' ? 'Invoices' :
@@ -437,7 +454,7 @@ export default function Templates() {
                    selectedTemplate?.type === 'Estimate' ? 'Estimates' :
                    selectedTemplate?.type === 'Quote' ? 'Quotes' :
                    selectedTemplate?.type === 'Report' ? 'Correspondences' : 'Documents'}
-                </span> folder
+                </span> folder. You can then edit it directly.
               </p>
             </div>
 
@@ -458,7 +475,109 @@ export default function Templates() {
                 className="bg-[#1B4D3E] hover:bg-[#14503C] text-white"
                 disabled={!selectedProjectId || assigning}
               >
-                {assigning ? 'Adding to Project...' : 'Add to Project'}
+                {assigning ? 'Copying...' : 'Copy to Project'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Browse Google Drive Modal */}
+      <Dialog open={showBrowseDriveModal} onOpenChange={setShowBrowseDriveModal}>
+        <DialogContent className="max-w-3xl bg-[#F5F4F3] border-gray-300 text-gray-900">
+          <DialogHeader>
+            <DialogTitle>Import Templates from Google Drive</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Template Type</Label>
+              <Select value={importingType} onValueChange={setImportingType}>
+                <SelectTrigger className="bg-white border-gray-300 text-gray-900">
+                  <SelectValue placeholder="Select template type" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border-gray-300">
+                  {templateTypes.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Select Google Docs to Import</Label>
+              <div className="mt-2 border border-gray-300 rounded-lg bg-white max-h-96 overflow-y-auto">
+                {loadingDrive ? (
+                  <div className="p-8 text-center text-gray-600">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
+                    Loading your Google Drive...
+                  </div>
+                ) : driveFiles.length === 0 ? (
+                  <div className="p-8 text-center text-gray-600">
+                    No Google Docs found in your Drive
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-200">
+                    {driveFiles.map((file) => (
+                      <label
+                        key={file.id}
+                        className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 ${
+                          file.isImported ? 'opacity-50' : ''
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={file.isImported}
+                          checked={selectedDriveFiles.some(f => f.id === file.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedDriveFiles([...selectedDriveFiles, file]);
+                            } else {
+                              setSelectedDriveFiles(selectedDriveFiles.filter(f => f.id !== file.id));
+                            }
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <FileText className="w-5 h-5 text-blue-600" />
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{file.name}</p>
+                          {file.isImported && (
+                            <p className="text-xs text-green-600">Already imported</p>
+                          )}
+                        </div>
+                        <a
+                          href={file.webViewLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowBrowseDriveModal(false);
+                  setSelectedDriveFiles([]);
+                  setImportingType('');
+                }}
+                className="border-gray-300 text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleImportSelected}
+                className="bg-[#1B4D3E] hover:bg-[#14503C] text-white"
+                disabled={selectedDriveFiles.length === 0 || !importingType || syncing}
+              >
+                {syncing ? 'Importing...' : `Import ${selectedDriveFiles.length} Template(s)`}
               </Button>
             </div>
           </div>
