@@ -27,6 +27,8 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, parseISO, isSameDay
 import { getCalendarEvents } from "@/functions/getCalendarEvents";
 import { createCalendarEvent } from "@/functions/createCalendarEvent";
 import { updateCalendarEvent } from "@/functions/updateCalendarEvent";
+import { syncProjectTasksToCalendar } from "@/functions/syncProjectTasksToCalendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function WeeklySchedule() {
   const [currentWeek, setCurrentWeek] = React.useState(new Date());
@@ -35,6 +37,8 @@ export default function WeeklySchedule() {
   const [showCreateModal, setShowCreateModal] = React.useState(false);
   const [followUpNotes, setFollowUpNotes] = React.useState("");
   const [actionItems, setActionItems] = React.useState([""]);
+  const [selectedProject, setSelectedProject] = React.useState('all');
+  const [syncing, setSyncing] = React.useState(false);
   const queryClient = useQueryClient();
 
   const [newEvent, setNewEvent] = React.useState({
@@ -62,6 +66,16 @@ export default function WeeklySchedule() {
   const { data: calendarNotes = [] } = useQuery({
     queryKey: ['calendarNotes'],
     queryFn: () => base44.entities.CalendarNote.list(),
+  });
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => base44.entities.Project.list(),
+  });
+
+  const { data: allTasks = [] } = useQuery({
+    queryKey: ['allTasks'],
+    queryFn: () => base44.entities.Task.list(),
   });
 
   const saveNotesMutation = useMutation({
@@ -107,6 +121,37 @@ export default function WeeklySchedule() {
 
   const events = calendarData?.events || [];
 
+  // Filter project tasks for the week
+  const weekTasks = React.useMemo(() => {
+    return allTasks.filter(task => {
+      const taskStart = new Date(task.start_date);
+      const taskEnd = task.finish_date ? new Date(task.finish_date) : taskStart;
+      
+      const overlapsWeek = taskStart <= weekEnd && taskEnd >= weekStart;
+      const matchesProject = selectedProject === 'all' || task.project_id === selectedProject;
+      
+      return overlapsWeek && matchesProject;
+    });
+  }, [allTasks, weekStart, weekEnd, selectedProject]);
+
+  const handleSyncTasks = async () => {
+    setSyncing(true);
+    try {
+      const response = await syncProjectTasksToCalendar({
+        projectId: selectedProject === 'all' ? null : selectedProject
+      });
+      
+      if (response.data.success) {
+        alert(`✅ Synced ${response.data.synced} tasks to calendar!`);
+        refetch();
+      }
+    } catch (error) {
+      alert('Failed to sync tasks: ' + error.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   // Group events by day
   const eventsByDay = React.useMemo(() => {
     const days = {};
@@ -121,12 +166,36 @@ export default function WeeklySchedule() {
       const eventDate = event.start.dateTime ? parseISO(event.start.dateTime) : parseISO(event.start.date);
       const dayKey = format(eventDate, 'yyyy-MM-dd');
       if (days[dayKey]) {
-        days[dayKey].push(event);
+        days[dayKey].push({ ...event, type: 'calendar' });
       }
     });
 
+    // Add project tasks to the calendar view
+    weekTasks.forEach(task => {
+      const taskDate = new Date(task.start_date);
+      const dayKey = format(taskDate, 'yyyy-MM-dd');
+      if (days[dayKey]) {
+        days[dayKey].push({ 
+          ...task, 
+          type: 'task',
+          summary: task.name,
+          start: { date: task.start_date },
+          end: { date: task.finish_date || task.start_date }
+        });
+      }
+    });
+
+    // Sort events within each day
+    Object.keys(days).forEach(dayKey => {
+      days[dayKey].sort((a, b) => {
+        const timeA = a.start.dateTime || a.start.date;
+        const timeB = b.start.dateTime || b.start.date;
+        return timeA.localeCompare(timeB);
+      });
+    });
+
     return days;
-  }, [events, weekStart]);
+  }, [events, weekTasks, weekStart]);
 
   // Check for double bookings
   const checkDoubleBooking = (newStart, newEnd) => {
@@ -219,6 +288,35 @@ export default function WeeklySchedule() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Select value={selectedProject} onValueChange={setSelectedProject}>
+            <SelectTrigger className="w-48 bg-white border-gray-300">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects.filter(p => ['Active', 'Planning'].includes(p.status)).map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={handleSyncTasks}
+            disabled={syncing}
+            variant="outline"
+            className="border-blue-300 text-blue-700 hover:bg-blue-50"
+          >
+            {syncing ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Syncing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Sync Tasks
+              </>
+            )}
+          </Button>
           <Button
             onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
             variant="outline"
@@ -303,6 +401,34 @@ export default function WeeklySchedule() {
                   <p className="text-xs text-gray-500 text-center py-4">No events</p>
                 ) : (
                   dayEvents.map(event => {
+                    if (event.type === 'task') {
+                      // Project task
+                      const project = projects.find(p => p.id === event.project_id);
+                      return (
+                        <div
+                          key={`task-${event.id}`}
+                          className="p-2 bg-green-50 border border-green-200 rounded-md"
+                        >
+                          <div className="flex items-start gap-1">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-green-900 truncate">
+                                {event.summary}
+                              </p>
+                              <p className="text-xs text-green-700 mt-1 truncate">
+                                {project?.name || 'Unknown Project'}
+                              </p>
+                              {event.calendar_event_id && (
+                                <Badge className="mt-1 text-xs bg-green-100 text-green-800">
+                                  Synced
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    // Calendar event
                     const note = getEventNote(event.id);
                     const hasNotes = note?.follow_up_notes || note?.action_items?.length > 0;
 
