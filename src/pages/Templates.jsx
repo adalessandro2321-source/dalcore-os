@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { FileText, Upload, Download, Trash2, Plus, FolderPlus } from "lucide-react";
+import { FileText, Upload, Download, Trash2, Plus, FolderPlus, RefreshCw, FileDown } from "lucide-react";
+import { syncGoogleDriveTemplates } from "@/functions/syncGoogleDriveTemplates";
+import { exportEstimateToGoogleDocs } from "@/functions/exportEstimateToGoogleDocs";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +25,11 @@ export default function Templates() {
   const [formData, setFormData] = React.useState({});
   const [uploading, setUploading] = React.useState(false);
   const [assigning, setAssigning] = React.useState(false);
+  const [syncing, setSyncing] = React.useState(false);
+  const [showExportModal, setShowExportModal] = React.useState(false);
+  const [selectedEstimateId, setSelectedEstimateId] = React.useState('');
+  const [selectedTemplateForExport, setSelectedTemplateForExport] = React.useState(null);
+  const [exporting, setExporting] = React.useState(false);
   const queryClient = useQueryClient();
 
   const { data: templates = [], isLoading } = useQuery({
@@ -33,6 +40,11 @@ export default function Templates() {
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
     queryFn: () => base44.entities.Project.list(),
+  });
+
+  const { data: estimates = [] } = useQuery({
+    queryKey: ['estimates'],
+    queryFn: () => base44.entities.Estimate.list(),
   });
 
   const deleteMutation = useMutation({
@@ -124,6 +136,45 @@ export default function Templates() {
     return templates.filter(t => t.type === type);
   };
 
+  const handleSyncGoogleDrive = async () => {
+    setSyncing(true);
+    try {
+      const response = await syncGoogleDriveTemplates({ folderId: null });
+      if (response.data.success) {
+        alert(`✅ Synced ${response.data.synced} templates from Google Drive!`);
+        queryClient.invalidateQueries({ queryKey: ['templates'] });
+      }
+    } catch (error) {
+      alert('Failed to sync templates: ' + error.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleExportEstimate = async () => {
+    if (!selectedEstimateId || !selectedTemplateForExport) return;
+    
+    setExporting(true);
+    try {
+      const response = await exportEstimateToGoogleDocs({
+        estimateId: selectedEstimateId,
+        templateId: selectedTemplateForExport.id
+      });
+      
+      if (response.data.success) {
+        alert(`✅ Estimate exported to Google Docs!`);
+        window.open(response.data.documentUrl, '_blank');
+        setShowExportModal(false);
+        setSelectedEstimateId('');
+        setSelectedTemplateForExport(null);
+      }
+    } catch (error) {
+      alert('Failed to export estimate: ' + error.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -131,13 +182,33 @@ export default function Templates() {
           <h2 className="text-2xl font-bold text-gray-900">Template Repository</h2>
           <p className="text-gray-600 mt-1">Manage document templates for proposals, contracts, and more</p>
         </div>
-        <Button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-[#1B4D3E] hover:bg-[#14503C] text-white"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Template
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={handleSyncGoogleDrive}
+            disabled={syncing}
+            variant="outline"
+            className="border-blue-300 text-blue-700 hover:bg-blue-50"
+          >
+            {syncing ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Syncing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Sync from Google Drive
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-[#1B4D3E] hover:bg-[#14503C] text-white"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Template
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
@@ -176,6 +247,20 @@ export default function Templates() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          {template.type === 'Estimate' && template.google_drive_id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedTemplateForExport(template);
+                                setShowExportModal(true);
+                              }}
+                              className="text-purple-700 hover:text-purple-900 hover:bg-purple-50"
+                            >
+                              <FileDown className="w-4 h-4 mr-2" />
+                              Export Estimate
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
@@ -374,6 +459,77 @@ export default function Templates() {
                 disabled={!selectedProjectId || assigning}
               >
                 {assigning ? 'Adding to Project...' : 'Add to Project'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Estimate Modal */}
+      <Dialog open={showExportModal} onOpenChange={setShowExportModal}>
+        <DialogContent className="bg-[#F5F4F3] border-gray-300 text-gray-900">
+          <DialogHeader>
+            <DialogTitle>Export Estimate to Google Docs</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Template</Label>
+              <div className="p-3 bg-white border border-gray-300 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-[#2A6B5A]" />
+                  <div>
+                    <p className="font-medium text-gray-900">{selectedTemplateForExport?.name}</p>
+                    <p className="text-sm text-gray-600">Google Docs Template</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label>Select Estimate</Label>
+              <Select
+                value={selectedEstimateId}
+                onValueChange={setSelectedEstimateId}
+              >
+                <SelectTrigger className="bg-white border-gray-300 text-gray-900">
+                  <SelectValue placeholder="Choose an estimate" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border-gray-300">
+                  {estimates.map((estimate) => (
+                    <SelectItem key={estimate.id} value={estimate.id}>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{estimate.name}</span>
+                        {estimate.number && (
+                          <span className="text-xs text-gray-600">({estimate.number})</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-600 mt-2">
+                Available placeholders: {'{'}{'{'} ESTIMATE_NUMBER {'}'}{'}'},  {'{'}{'{'} PROJECT_NAME {'}'}{'}'},  {'{'}{'{'} PROJECT_ADDRESS {'}'}{'}'},  {'{'}{'{'} ESTIMATE_DATE {'}'}{'}'},  {'{'}{'{'} CONTRACT_VALUE {'}'}{'}'},  {'{'}{'{'} MATERIAL_COST {'}'}{'}'},  {'{'}{'{'} LABOR_COST {'}'}{'}'},  {'{'}{'{'} TOTAL_COST {'}'}{'}'} 
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowExportModal(false);
+                  setSelectedTemplateForExport(null);
+                  setSelectedEstimateId('');
+                }}
+                className="border-gray-300 text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleExportEstimate}
+                className="bg-[#1B4D3E] hover:bg-[#14503C] text-white"
+                disabled={!selectedEstimateId || exporting}
+              >
+                {exporting ? 'Exporting...' : 'Export to Google Docs'}
               </Button>
             </div>
           </div>
