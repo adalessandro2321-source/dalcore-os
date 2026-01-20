@@ -121,15 +121,9 @@ export default function Dashboard() {
     })
     .reduce((sum, po) => sum + (po.allocated_value || 0), 0);
 
-  // Revenue Pending Recognition: Not Started + In Progress obligations
+  // Revenue Pending Recognition: Not Started + In Progress obligations (all, not year-filtered)
   const currentYearRevenuePending = performanceObligations
-    .filter(po => {
-      if (!['Not Started', 'In Progress'].includes(po.status)) return false;
-      // Include if estimated completion is in current year, or if no estimated date, include all pending
-      if (!po.estimated_completion_date) return true;
-      const estimatedYear = new Date(po.estimated_completion_date).getFullYear();
-      return estimatedYear === currentYear;
-    })
+    .filter(po => ['Not Started', 'In Progress'].includes(po.status))
     .reduce((sum, po) => sum + (po.allocated_value || 0), 0);
 
   // Total Revenue (Recognized + Pending for current year)
@@ -386,7 +380,7 @@ export default function Dashboard() {
               <p className="text-sm text-gray-600 mb-1">Pending Recognition</p>
               <p className="text-2xl font-bold text-orange-600">{formatCurrency(currentYearRevenuePending)}</p>
               <p className="text-xs text-gray-500 mt-2">
-                {performanceObligations.filter(po => ['Not Started', 'In Progress'].includes(po.status) && (!po.estimated_completion_date || new Date(po.estimated_completion_date).getFullYear() === currentYear)).length} obligations pending
+                {performanceObligations.filter(po => ['Not Started', 'In Progress'].includes(po.status)).length} obligations pending
               </p>
             </div>
 
