@@ -36,6 +36,12 @@ export default function CashRegister() {
 
   const queryClient = useQueryClient();
 
+  // Helper function to safely parse numeric values
+  const parseAmount = (value) => {
+    const num = parseFloat(value);
+    return isNaN(num) ? 0 : Number(num.toFixed(2));
+  };
+
   const { data: transactions = [] } = useQuery({
     queryKey: ['cashTransactions'],
     queryFn: () => base44.entities.CashTransaction.list('date'),
@@ -48,17 +54,17 @@ export default function CashRegister() {
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const previousBalance = transactions.length > 0
-        ? transactions[transactions.length - 1].balance || 0
-        : 0;
+      const previousBalance = parseAmount(transactions.length > 0
+        ? transactions[transactions.length - 1].balance
+        : 0);
 
-      const deposits = (data.wire_deposits || 0) + (data.zelle_deposits || 0) +
-                      (data.cc_deposits || 0) + (data.check_deposits || 0) +
-                      (data.interest_earned || 0) + (data.voids || 0);
+      const deposits = parseAmount(data.wire_deposits) + parseAmount(data.zelle_deposits) +
+                      parseAmount(data.cc_deposits) + parseAmount(data.check_deposits) +
+                      parseAmount(data.interest_earned) + parseAmount(data.voids);
 
-      const withdrawals = (data.other || 0) + (data.checks_out || 0) + (data.adp || 0);
+      const withdrawals = parseAmount(data.other) + parseAmount(data.checks_out) + parseAmount(data.adp);
 
-      const newBalance = previousBalance + deposits - withdrawals;
+      const newBalance = Number((previousBalance + deposits - withdrawals).toFixed(2));
 
       await base44.entities.CashTransaction.create({
         ...data,
@@ -101,15 +107,16 @@ export default function CashRegister() {
     let runningBalance = 0;
 
     for (const transaction of allTransactions) {
-      const deposits = (transaction.wire_deposits || 0) + (transaction.zelle_deposits || 0) +
-                      (transaction.cc_deposits || 0) + (transaction.check_deposits || 0) +
-                      (transaction.interest_earned || 0) + (transaction.voids || 0);
+      const deposits = parseAmount(transaction.wire_deposits) + parseAmount(transaction.zelle_deposits) +
+                      parseAmount(transaction.cc_deposits) + parseAmount(transaction.check_deposits) +
+                      parseAmount(transaction.interest_earned) + parseAmount(transaction.voids);
 
-      const withdrawals = (transaction.other || 0) + (transaction.checks_out || 0) + (transaction.adp || 0);
+      const withdrawals = parseAmount(transaction.other) + parseAmount(transaction.checks_out) + parseAmount(transaction.adp);
 
-      runningBalance = runningBalance + deposits - withdrawals;
+      runningBalance = Number((runningBalance + deposits - withdrawals).toFixed(2));
 
-      if (transaction.balance !== runningBalance) {
+      const currentBalance = parseAmount(transaction.balance);
+      if (Math.abs(currentBalance - runningBalance) > 0.01) {
         await base44.entities.CashTransaction.update(transaction.id, {
           ...transaction,
           balance: runningBalance
@@ -145,15 +152,15 @@ export default function CashRegister() {
     const dataToSubmit = {
       ...formData,
       project_number: project?.number || formData.project_number,
-      other: parseFloat(formData.other) || 0,
-      checks_out: parseFloat(formData.checks_out) || 0,
-      adp: parseFloat(formData.adp) || 0,
-      voids: parseFloat(formData.voids) || 0,
-      interest_earned: parseFloat(formData.interest_earned) || 0,
-      wire_deposits: parseFloat(formData.wire_deposits) || 0,
-      zelle_deposits: parseFloat(formData.zelle_deposits) || 0,
-      cc_deposits: parseFloat(formData.cc_deposits) || 0,
-      check_deposits: parseFloat(formData.check_deposits) || 0,
+      other: parseAmount(formData.other),
+      checks_out: parseAmount(formData.checks_out),
+      adp: parseAmount(formData.adp),
+      voids: parseAmount(formData.voids),
+      interest_earned: parseAmount(formData.interest_earned),
+      wire_deposits: parseAmount(formData.wire_deposits),
+      zelle_deposits: parseAmount(formData.zelle_deposits),
+      cc_deposits: parseAmount(formData.cc_deposits),
+      check_deposits: parseAmount(formData.check_deposits),
     };
 
     if (editingTransaction) {
