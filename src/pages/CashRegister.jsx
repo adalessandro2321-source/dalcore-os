@@ -15,7 +15,7 @@ export default function CashRegister() {
   const [showModal, setShowModal] = React.useState(false);
   const [editingTransaction, setEditingTransaction] = React.useState(null);
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [sortConfig, setSortConfig] = React.useState({ key: 'date', direction: 'asc' });
+  const [sortConfig, setSortConfig] = React.useState({ key: 'date', direction: 'desc' });
   const [zoom, setZoom] = React.useState(100);
   const [formData, setFormData] = React.useState({
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -94,10 +94,18 @@ export default function CashRegister() {
   const recalculateBalances = async () => {
     const allTransactions = await base44.entities.CashTransaction.list();
     
-    // Sort transactions by date chronologically (oldest first)
+    // Sort transactions by date AND created_date chronologically (oldest first)
     const sortedTransactions = [...allTransactions].sort((a, b) => {
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
+      
+      // If dates are the same, sort by created_date
+      if (dateA === dateB) {
+        const createdA = new Date(a.created_date).getTime();
+        const createdB = new Date(b.created_date).getTime();
+        return createdA - createdB;
+      }
+      
       return dateA - dateB;
     });
 
@@ -120,14 +128,11 @@ export default function CashRegister() {
       // Calculate new running balance
       runningBalance = Number((runningBalance + deposits - withdrawals).toFixed(2));
 
-      // Update if different
-      const currentBalance = parseAmount(transaction.balance);
-      if (Math.abs(currentBalance - runningBalance) > 0.01) {
-        await base44.entities.CashTransaction.update(transaction.id, {
-          ...transaction,
-          balance: runningBalance
-        });
-      }
+      // Always update to ensure balance is correct
+      await base44.entities.CashTransaction.update(transaction.id, {
+        ...transaction,
+        balance: runningBalance
+      });
     }
   };
 
@@ -235,10 +240,16 @@ export default function CashRegister() {
       let aValue = a[sortConfig.key];
       let bValue = b[sortConfig.key];
 
-      // Handle dates
+      // Handle dates - if dates are same, use created_date for consistent ordering
       if (sortConfig.key === 'date') {
         aValue = new Date(aValue).getTime();
         bValue = new Date(bValue).getTime();
+        
+        // If dates are identical, use created_date as tiebreaker
+        if (aValue === bValue) {
+          aValue = new Date(a.created_date).getTime();
+          bValue = new Date(b.created_date).getTime();
+        }
       }
 
       // Handle numbers
