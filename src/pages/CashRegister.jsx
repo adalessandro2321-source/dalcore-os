@@ -54,21 +54,10 @@ export default function CashRegister() {
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const previousBalance = parseAmount(transactions.length > 0
-        ? transactions[transactions.length - 1].balance
-        : 0);
-
-      const deposits = parseAmount(data.wire_deposits) + parseAmount(data.zelle_deposits) +
-                      parseAmount(data.cc_deposits) + parseAmount(data.check_deposits) +
-                      parseAmount(data.interest_earned) + parseAmount(data.voids);
-
-      const withdrawals = parseAmount(data.other) + parseAmount(data.checks_out) + parseAmount(data.adp);
-
-      const newBalance = Number((previousBalance + deposits - withdrawals).toFixed(2));
-
+      // Don't calculate balance here - let recalculateBalances handle it
       await base44.entities.CashTransaction.create({
         ...data,
-        balance: newBalance
+        balance: 0 // Temporary, will be recalculated
       });
 
       await recalculateBalances();
@@ -103,18 +92,35 @@ export default function CashRegister() {
   });
 
   const recalculateBalances = async () => {
-    const allTransactions = await base44.entities.CashTransaction.list('date');
+    const allTransactions = await base44.entities.CashTransaction.list();
+    
+    // Sort transactions by date chronologically (oldest first)
+    const sortedTransactions = [...allTransactions].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateA - dateB;
+    });
+
     let runningBalance = 0;
 
-    for (const transaction of allTransactions) {
-      const deposits = parseAmount(transaction.wire_deposits) + parseAmount(transaction.zelle_deposits) +
-                      parseAmount(transaction.cc_deposits) + parseAmount(transaction.check_deposits) +
-                      parseAmount(transaction.interest_earned) + parseAmount(transaction.voids);
+    for (const transaction of sortedTransactions) {
+      // Deposits add to balance (positive)
+      const deposits = parseAmount(transaction.wire_deposits) + 
+                      parseAmount(transaction.zelle_deposits) +
+                      parseAmount(transaction.cc_deposits) + 
+                      parseAmount(transaction.check_deposits) +
+                      parseAmount(transaction.interest_earned) + 
+                      parseAmount(transaction.voids);
 
-      const withdrawals = parseAmount(transaction.other) + parseAmount(transaction.checks_out) + parseAmount(transaction.adp);
+      // Withdrawals subtract from balance (negative)
+      const withdrawals = parseAmount(transaction.other) + 
+                         parseAmount(transaction.checks_out) + 
+                         parseAmount(transaction.adp);
 
+      // Calculate new running balance
       runningBalance = Number((runningBalance + deposits - withdrawals).toFixed(2));
 
+      // Update if different
       const currentBalance = parseAmount(transaction.balance);
       if (Math.abs(currentBalance - runningBalance) > 0.01) {
         await base44.entities.CashTransaction.update(transaction.id, {
@@ -330,7 +336,14 @@ export default function CashRegister() {
     window.URL.revokeObjectURL(url);
   };
 
-  const currentBalance = transactions.length > 0 ? transactions[transactions.length - 1].balance || 0 : 0;
+  // Get the most recent transaction by date to show current balance
+  const currentBalance = React.useMemo(() => {
+    if (transactions.length === 0) return 0;
+    const sorted = [...transactions].sort((a, b) => {
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+    return parseAmount(sorted[0].balance);
+  }, [transactions]);
 
   return (
     <div className="space-y-6">
@@ -341,6 +354,18 @@ export default function CashRegister() {
           <p style={{ color: '#5A7765' }}>Daily cash flow tracking</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            onClick={async () => {
+              if (confirm('Recalculate all balances? This will fix any calculation errors.')) {
+                await recalculateBalances();
+                queryClient.invalidateQueries({ queryKey: ['cashTransactions'] });
+              }
+            }}
+            variant="outline"
+            className="border-amber-300 text-amber-700 hover:bg-amber-50"
+          >
+            Fix Balances
+          </Button>
           <div className="text-right mr-4">
             <p className="text-sm" style={{ color: '#5A7765' }}>Current Balance</p>
             <p className="text-2xl font-bold" style={{ color: '#0E351F' }}>{formatCurrency(currentBalance)}</p>
