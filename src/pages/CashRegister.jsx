@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, Search, ZoomIn, ZoomOut } from "lucide-react";
 import { formatDate, formatCurrency } from "../components/shared/DateFormatter";
 import { format, parseISO } from "date-fns";
 
@@ -17,6 +16,7 @@ export default function CashRegister() {
   const [editingTransaction, setEditingTransaction] = React.useState(null);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [sortConfig, setSortConfig] = React.useState({ key: 'date', direction: 'asc' });
+  const [zoom, setZoom] = React.useState(100);
   const [formData, setFormData] = React.useState({
     date: format(new Date(), 'yyyy-MM-dd'),
     action: '',
@@ -338,6 +338,29 @@ export default function CashRegister() {
             <p className="text-sm" style={{ color: '#5A7765' }}>Current Balance</p>
             <p className="text-2xl font-bold" style={{ color: '#0E351F' }}>{formatCurrency(currentBalance)}</p>
           </div>
+          <div className="flex items-center gap-2 border border-[#C9C8AF] rounded-lg px-3 py-2 bg-white">
+            <Button
+              onClick={() => setZoom(Math.max(50, zoom - 10))}
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              disabled={zoom <= 50}
+            >
+              <ZoomOut className="w-4 h-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-[60px] text-center" style={{ color: '#5A7765' }}>
+              {zoom}%
+            </span>
+            <Button
+              onClick={() => setZoom(Math.min(150, zoom + 10))}
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              disabled={zoom >= 150}
+            >
+              <ZoomIn className="w-4 h-4" />
+            </Button>
+          </div>
           <Button
             onClick={exportToExcel}
             variant="outline"
@@ -393,7 +416,7 @@ export default function CashRegister() {
       {/* Transactions Table */}
       <Card className="bg-white border-[#C9C8AF]">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left', width: `${100 / (zoom / 100)}%` }}>
             <table className="w-full">
               <thead className="border-b sticky top-0 z-10" style={{ backgroundColor: '#F5F4F3', borderColor: '#C9C8AF' }}>
                 <tr>
