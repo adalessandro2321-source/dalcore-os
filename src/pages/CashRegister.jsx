@@ -618,7 +618,12 @@ export default function CashRegister() {
                         style={{ borderColor: '#C9C8AF' }}
                       >
                         <td className="px-4 py-3 text-sm" style={{ color: '#181E18' }}>
-                          {formatDate(transaction.date, 'M/d/yyyy')}
+                          <div>
+                            <div>{formatDate(transaction.date, 'M/d/yyyy')}</div>
+                            <div className="text-xs text-gray-500">
+                              #{transaction.id.slice(-4)} ({new Date(transaction.created_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })})
+                            </div>
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-sm" style={{ color: '#181E18' }}>{transaction.action}</td>
                         <td className="px-4 py-3 text-sm" style={{ color: '#181E18' }}>{transaction.project_number || '-'}</td>
@@ -650,12 +655,7 @@ export default function CashRegister() {
                           {transaction.check_deposits ? formatCurrency(transaction.check_deposits) : ''}
                         </td>
                         <td className="px-4 py-3 text-sm text-right font-semibold" style={{ color: '#0E351F' }}>
-                          <div>
-                            <div>{formatCurrency(transaction.balance)}</div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {formatDate(transaction.date)} @ {new Date(transaction.created_date).toLocaleTimeString()}
-                            </div>
-                          </div>
+                          {formatCurrency(transaction.balance)}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
