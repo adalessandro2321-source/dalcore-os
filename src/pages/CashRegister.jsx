@@ -650,7 +650,12 @@ export default function CashRegister() {
                           {transaction.check_deposits ? formatCurrency(transaction.check_deposits) : ''}
                         </td>
                         <td className="px-4 py-3 text-sm text-right font-semibold" style={{ color: '#0E351F' }}>
-                          {formatCurrency(transaction.balance)}
+                          <div>
+                            <div>{formatCurrency(transaction.balance)}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {formatDate(transaction.date)} @ {new Date(transaction.created_date).toLocaleTimeString()}
+                            </div>
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
