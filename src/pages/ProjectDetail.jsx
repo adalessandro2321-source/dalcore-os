@@ -20,7 +20,8 @@ import {
   CheckCircle,
   TrendingUp,
   Brain,
-  RefreshCw
+  RefreshCw,
+  FileEdit
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -33,6 +34,7 @@ import MaterialCosts from "../components/project/MaterialCosts";
 import DailyLogRiskSuggestions from "../components/project/DailyLogRiskSuggestions";
 import ProjectAIInsights from "../components/project/ProjectAIInsights";
 import BudgetModule from "../components/budget/BudgetModule";
+import ChangeOrdersTab from "../components/project/ChangeOrdersTab";
 import { formatDate, formatCurrency } from "../components/shared/DateFormatter";
 
 export default function ProjectDetail() {
@@ -353,6 +355,10 @@ export default function ProjectDetail() {
             <CheckCircle className="w-4 h-4 mr-2" />
             Performance Obligations
           </TabsTrigger>
+          <TabsTrigger value="changeorders" className="data-[state=active]:bg-[#1B4D3E] data-[state=active]:text-white">
+            <FileEdit className="w-4 h-4 mr-2" />
+            Change Orders
+          </TabsTrigger>
           <TabsTrigger value="documents" className="data-[state=active]:bg-[#1B4D3E] data-[state=active]:text-white">
             <FileText className="w-4 h-4 mr-2" />
             Documents
@@ -381,6 +387,10 @@ export default function ProjectDetail() {
 
         <TabsContent value="ai-insights">
           <ProjectAIInsights projectId={projectId} project={project} />
+        </TabsContent>
+
+        <TabsContent value="changeorders">
+          <ChangeOrdersTab projectId={projectId} project={project} />
         </TabsContent>
 
         <TabsContent value="obligations">
