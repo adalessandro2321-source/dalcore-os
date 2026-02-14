@@ -419,6 +419,21 @@ export default function ChangeOrderDetail() {
               <p className="font-medium text-gray-900">{formatDate(changeOrder.created_date)}</p>
             </div>
 
+            {estimate && (
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Baseline Estimate</p>
+                <Link 
+                  to={createPageUrl(`Estimates?id=${estimate.id}`)}
+                  className="font-medium text-[#1B4D3E] hover:underline text-sm"
+                >
+                  {estimate.name}
+                </Link>
+                <p className="text-xs text-gray-500 mt-1">
+                  Labor Rate: {formatCurrency(estimate.labor_rate || 0)}/hr
+                </p>
+              </div>
+            )}
+
             {changeOrder.status === 'Approved' && (
               <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-sm text-green-800 font-medium">
