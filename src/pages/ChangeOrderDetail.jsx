@@ -185,6 +185,55 @@ export default function ChangeOrderDetail() {
     });
   };
 
+  const exportChangeOrder = () => {
+    if (!changeOrder || !project) return;
+
+    const additions = changeOrder.line_items?.filter(item => item.type === 'Addition') || [];
+    const credits = changeOrder.line_items?.filter(item => item.type === 'Credit') || [];
+    const originalContract = project.contract_value || 0;
+    const coAmount = changeOrder.subtotal || changeOrder.cost_impact || 0;
+    const newContract = originalContract + coAmount;
+
+    let html = '<html><head><meta charset="utf-8"><style>';
+    html += 'body { font-family: Arial, sans-serif; padding: 20px; }';
+    html += 'table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }';
+    html += 'td { border: 1px solid #000; padding: 8px; }';
+    html += 'td:first-child { width: 70%; }';
+    html += 'td:last-child { width: 30%; text-align: right; }';
+    html += '.credit { color: #DC2626; }';
+    html += '.total { font-weight: bold; background-color: #F3F4F6; }';
+    html += '</style></head><body>';
+
+    html += '<table>';
+    html += '<tr><td style="font-weight: bold; background-color: #E5E7EB;">Description</td>';
+    html += '<td style="font-weight: bold; background-color: #E5E7EB;">Amount</td></tr>';
+
+    // Additions
+    additions.forEach(item => {
+      html += `<tr><td>${item.description || ''}</td><td>$${(item.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+    });
+
+    // Credits
+    credits.forEach(item => {
+      html += `<tr class="credit"><td>Credit: ${item.description || ''}</td><td>$${(item.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+    });
+
+    // Summary
+    html += `<tr class="total"><td>Price of Change</td><td>$${coAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+    html += `<tr><td>Original Contract Price</td><td>$${originalContract.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+    html += `<tr class="total"><td>New Contract Price (Includes Change Order ${changeOrder.number || '1'})</td><td>$${newContract.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+
+    html += '</table></body></html>';
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `change-order-${changeOrder.number || changeOrder.id}.xls`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   if (!changeOrder) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -210,6 +259,14 @@ export default function ChangeOrderDetail() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            onClick={exportChangeOrder}
+            variant="outline"
+            className="border-gray-300 text-gray-700"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
           <Button
             onClick={() => setShowEditModal(true)}
             variant="outline"
