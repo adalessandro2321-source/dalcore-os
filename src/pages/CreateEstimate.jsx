@@ -893,13 +893,11 @@ export default function CreateEstimate() {
                         </SelectTrigger>
                         <SelectContent className="bg-white border-gray-300 max-h-60">
                           <SelectItem value="none">None</SelectItem>
-                          {projects
-                            .filter(p => p.status !== 'Closed' && p.status !== 'Completed')
-                            .map(proj => (
-                              <SelectItem key={proj.id} value={proj.id}>
-                                {proj.number ? `${proj.number} - ` : ''}{proj.name}
-                              </SelectItem>
-                            ))}
+                          {projects.map(proj => (
+                            <SelectItem key={proj.id} value={proj.id}>
+                              {proj.number ? `${proj.number} - ` : ''}{proj.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-gray-500 mt-1">
