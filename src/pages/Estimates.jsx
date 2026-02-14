@@ -346,7 +346,7 @@ export default function Estimates() {
                   <SelectItem value={null}>None</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
-                      {project.number ? `${project.number} - ` : ''}{project.name}
+                      {project.number ? `${project.number} - ` : ''}{project.name} ({project.status})
                     </SelectItem>
                   ))}
                 </SelectContent>
