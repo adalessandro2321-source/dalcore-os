@@ -30,6 +30,7 @@ export default function Estimates() {
     markup_percent: 15,
     gross_profit_margin_percent: 20
   });
+  const [uploadProjectId, setUploadProjectId] = React.useState('');
 
   const { data: estimates = [], isLoading } = useQuery({
     queryKey: ['estimates'],
@@ -169,6 +170,7 @@ export default function Estimates() {
         // Create the estimate with extracted data
         const newEstimate = await base44.entities.Estimate.create({
           name: extractedData.name || 'Imported Estimate',
+          project_id: uploadProjectId || '',
           project_address: extractedData.project_address || '',
           labor_rate: extractedData.labor_rate || 75,
           labor_hours: extractedData.labor_hours || 0,
@@ -180,9 +182,18 @@ export default function Estimates() {
           status: 'Draft'
         });
 
+        // If project selected, update project with estimate_id
+        if (uploadProjectId) {
+          await base44.entities.Project.update(uploadProjectId, {
+            estimate_id: newEstimate.id
+          });
+        }
+
         queryClient.invalidateQueries({ queryKey: ['estimates'] });
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
         setShowUploadModal(false);
         setUploadFile(null);
+        setUploadProjectId('');
         toast.success('Estimate imported successfully!');
         navigate(createPageUrl(`CreateEstimate?id=${newEstimate.id}`));
       } else {
@@ -430,6 +441,29 @@ export default function Estimates() {
               </p>
             </div>
 
+            <div>
+              <Label>Link to Project (Optional)</Label>
+              <Select
+                value={uploadProjectId}
+                onValueChange={(value) => setUploadProjectId(value)}
+              >
+                <SelectTrigger className="bg-white border-gray-300">
+                  <SelectValue placeholder="Select a project..." />
+                </SelectTrigger>
+                <SelectContent className="bg-white max-h-60">
+                  <SelectItem value={null}>None</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.number ? `${project.number} - ` : ''}{project.name} ({project.status})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500 mt-1">
+                Link this estimate as the baseline for change orders
+              </p>
+            </div>
+
             {isExtracting && (
               <div className="flex items-center gap-2 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -444,6 +478,7 @@ export default function Estimates() {
                 onClick={() => {
                   setShowUploadModal(false);
                   setUploadFile(null);
+                  setUploadProjectId('');
                 }}
                 className="border-gray-300"
                 disabled={isExtracting}
