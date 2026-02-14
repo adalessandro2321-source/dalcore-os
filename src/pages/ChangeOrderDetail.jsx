@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Edit, Trash2, Download } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Download, Plus, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import StatusBadge from "../components/shared/StatusBadge";
 import { formatDate, formatCurrency } from "../components/shared/DateFormatter";
@@ -43,6 +42,17 @@ export default function ChangeOrderDetail() {
       return projects.find(p => p.id === changeOrder?.project_id);
     },
     enabled: !!changeOrder?.project_id,
+  });
+
+  const { data: estimate } = useQuery({
+    queryKey: ['estimate', changeOrder?.estimate_id || project?.estimate_id],
+    queryFn: async () => {
+      const estimateId = changeOrder?.estimate_id || project?.estimate_id;
+      if (!estimateId) return null;
+      const estimates = await base44.entities.Estimate.list();
+      return estimates.find(e => e.id === estimateId);
+    },
+    enabled: !!(changeOrder?.estimate_id || project?.estimate_id),
   });
 
   const { data: documents = [] } = useQuery({
@@ -108,7 +118,7 @@ export default function ChangeOrderDetail() {
         number: changeOrder.number || '',
         reason: changeOrder.reason || '',
         description: changeOrder.description || '',
-        cost_impact: changeOrder.cost_impact || 0,
+        line_items: changeOrder.line_items || [],
         schedule_impact_days: changeOrder.schedule_impact_days || 0,
         status: changeOrder.status || 'Draft',
         requested_by: changeOrder.requested_by || '',
@@ -117,9 +127,62 @@ export default function ChangeOrderDetail() {
     }
   }, [changeOrder]);
 
+  const addLineItem = () => {
+    setFormData({
+      ...formData,
+      line_items: [
+        ...formData.line_items,
+        {
+          type: 'Addition',
+          description: '',
+          quantity: 1,
+          unit_cost: 0,
+          material_cost: 0,
+          labor_hours: 0,
+          total: 0,
+          notes: ''
+        }
+      ]
+    });
+  };
+
+  const removeLineItem = (index) => {
+    const newLineItems = formData.line_items.filter((_, i) => i !== index);
+    setFormData({ ...formData, line_items: newLineItems });
+  };
+
+  const updateLineItem = (index, field, value) => {
+    const newLineItems = [...formData.line_items];
+    newLineItems[index][field] = value;
+    
+    // Auto-calculate total when quantity or unit_cost changes
+    if (field === 'quantity' || field === 'unit_cost' || field === 'material_cost' || field === 'labor_hours') {
+      const item = newLineItems[index];
+      const laborRate = estimate?.labor_rate || 0;
+      newLineItems[index].total = 
+        (item.material_cost || 0) + 
+        ((item.labor_hours || 0) * laborRate) + 
+        ((item.quantity || 0) * (item.unit_cost || 0));
+    }
+    
+    setFormData({ ...formData, line_items: newLineItems });
+  };
+
+  const calculateSubtotal = () => {
+    return formData.line_items?.reduce((sum, item) => {
+      const total = item.total || 0;
+      return sum + (item.type === 'Credit' ? -total : total);
+    }, 0) || 0;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    updateMutation.mutate(formData);
+    const subtotal = calculateSubtotal();
+    updateMutation.mutate({
+      ...formData,
+      subtotal,
+      cost_impact: subtotal
+    });
   };
 
   if (!changeOrder) {
@@ -198,20 +261,74 @@ export default function ChangeOrderDetail() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-300">
-              <div>
-                <p className="text-sm text-gray-600">Cost Impact</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(changeOrder.cost_impact || 0)}
-                </p>
+            {changeOrder.line_items?.length > 0 && (
+              <div className="pt-4 border-t border-gray-300">
+                <p className="text-sm text-gray-600 mb-3 font-medium">Line Items</p>
+                <div className="space-y-2">
+                  {changeOrder.line_items.map((item, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`p-3 rounded-lg border ${item.type === 'Credit' ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded ${item.type === 'Credit' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'}`}>
+                              {item.type}
+                            </span>
+                            <span className="font-medium text-gray-900">{item.description}</span>
+                          </div>
+                          {item.quantity > 0 && (
+                            <p className="text-sm text-gray-600">
+                              Qty: {item.quantity} × {formatCurrency(item.unit_cost)}
+                            </p>
+                          )}
+                          {item.labor_hours > 0 && (
+                            <p className="text-sm text-gray-600">
+                              Labor: {item.labor_hours} hrs @ {formatCurrency(estimate?.labor_rate || 0)}/hr
+                            </p>
+                          )}
+                          {item.material_cost > 0 && (
+                            <p className="text-sm text-gray-600">Materials: {formatCurrency(item.material_cost)}</p>
+                          )}
+                          {item.notes && (
+                            <p className="text-xs text-gray-500 mt-1">{item.notes}</p>
+                          )}
+                        </div>
+                        <span className={`text-lg font-bold ${item.type === 'Credit' ? 'text-green-700' : 'text-gray-900'}`}>
+                          {item.type === 'Credit' ? '-' : ''}{formatCurrency(item.total || 0)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 pt-3 border-t border-gray-300 flex justify-between items-center">
+                  <span className="font-semibold text-gray-700">Total Cost Impact:</span>
+                  <span className="text-2xl font-bold text-gray-900">
+                    {formatCurrency(changeOrder.subtotal || changeOrder.cost_impact || 0)}
+                  </span>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Schedule Impact</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {changeOrder.schedule_impact_days || 0} days
-                </p>
+            )}
+
+            {(!changeOrder.line_items || changeOrder.line_items.length === 0) && (
+              <div className="pt-4 border-t border-gray-300">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Cost Impact</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {formatCurrency(changeOrder.cost_impact || 0)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Schedule Impact</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {changeOrder.schedule_impact_days || 0} days
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             {changeOrder.approved_date && (
               <div className="pt-4 border-t border-gray-300">
@@ -332,30 +449,159 @@ export default function ChangeOrderDetail() {
                 value={formData.description || ''}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
                 className="bg-white border-gray-300 text-gray-900"
-                rows={3}
+                rows={2}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Cost Impact</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.cost_impact || ''}
-                  onChange={(e) => setFormData({...formData, cost_impact: parseFloat(e.target.value) || 0})}
-                  className="bg-white border-gray-300 text-gray-900"
-                />
+            <div className="border-t pt-4 space-y-4" style={{ borderColor: '#C9C8AF' }}>
+              <div className="flex justify-between items-center">
+                <h3 className="font-semibold text-gray-900">Line Items</h3>
+                <Button
+                  type="button"
+                  onClick={addLineItem}
+                  size="sm"
+                  variant="outline"
+                  className="border-gray-300"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Item
+                </Button>
               </div>
-              <div>
-                <Label>Schedule Impact (Days)</Label>
-                <Input
-                  type="number"
-                  value={formData.schedule_impact_days || ''}
-                  onChange={(e) => setFormData({...formData, schedule_impact_days: parseInt(e.target.value) || 0})}
-                  className="bg-white border-gray-300 text-gray-900"
-                />
+
+              {formData.line_items?.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">
+                  No line items yet. Click "Add Item" to add additions or credits.
+                </p>
+              )}
+
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                {formData.line_items?.map((item, idx) => (
+                  <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1 grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Type</Label>
+                          <Select
+                            value={item.type}
+                            onValueChange={(value) => updateLineItem(idx, 'type', value)}
+                          >
+                            <SelectTrigger className="bg-white h-9 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Addition">Addition (+)</SelectItem>
+                              <SelectItem value="Credit">Credit (-)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex justify-end">
+                          <Button
+                            type="button"
+                            onClick={() => removeLineItem(idx)}
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Description</Label>
+                      <Input
+                        value={item.description}
+                        onChange={(e) => updateLineItem(idx, 'description', e.target.value)}
+                        className="bg-white h-9 text-sm"
+                        placeholder="e.g., Additional framing, Material credit"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-3">
+                      <div>
+                        <Label className="text-xs">Quantity</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={item.quantity || ''}
+                          onChange={(e) => updateLineItem(idx, 'quantity', parseFloat(e.target.value) || 0)}
+                          className="bg-white h-9 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Unit Cost</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={item.unit_cost || ''}
+                          onChange={(e) => updateLineItem(idx, 'unit_cost', parseFloat(e.target.value) || 0)}
+                          className="bg-white h-9 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Material Cost</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={item.material_cost || ''}
+                          onChange={(e) => updateLineItem(idx, 'material_cost', parseFloat(e.target.value) || 0)}
+                          className="bg-white h-9 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Labor Hours</Label>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={item.labor_hours || ''}
+                          onChange={(e) => updateLineItem(idx, 'labor_hours', parseFloat(e.target.value) || 0)}
+                          className="bg-white h-9 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Notes (Optional)</Label>
+                        <Input
+                          value={item.notes || ''}
+                          onChange={(e) => updateLineItem(idx, 'notes', e.target.value)}
+                          className="bg-white h-9 text-sm"
+                          placeholder="Additional details"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <div className="flex-1 text-right">
+                          <Label className="text-xs text-gray-600">Total</Label>
+                          <p className={`text-lg font-bold ${item.type === 'Credit' ? 'text-green-700' : 'text-gray-900'}`}>
+                            {item.type === 'Credit' ? '-' : ''}{formatCurrency(item.total || 0)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
+
+              {formData.line_items?.length > 0 && (
+                <div className="flex justify-between items-center pt-3 border-t border-gray-300">
+                  <span className="font-semibold text-gray-700">Total Cost Impact:</span>
+                  <span className="text-xl font-bold text-gray-900">
+                    {formatCurrency(calculateSubtotal())}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label>Schedule Impact (Days)</Label>
+              <Input
+                type="number"
+                value={formData.schedule_impact_days || ''}
+                onChange={(e) => setFormData({...formData, schedule_impact_days: parseInt(e.target.value) || 0})}
+                className="bg-white border-gray-300 text-gray-900"
+              />
             </div>
 
             <div>
