@@ -53,7 +53,7 @@ export default function ChangeOrdersTab({ projectId, project }) {
         return sum + (item.type === 'Credit' ? -total : total);
       }, 0) || 0;
 
-      return base44.entities.ChangeOrder.create({
+      const changeOrder = await base44.entities.ChangeOrder.create({
         ...data,
         project_id: projectId,
         estimate_id: project?.estimate_id,
@@ -61,6 +61,19 @@ export default function ChangeOrdersTab({ projectId, project }) {
         cost_impact: subtotal,
         status: 'Draft'
       });
+
+      // Create a linked performance obligation for this change order
+      await base44.entities.PerformanceObligation.create({
+        project_id: projectId,
+        name: `Change Order: ${data.reason}`,
+        description: data.description || '',
+        allocated_value: subtotal,
+        percentage_of_contract: 0,
+        status: 'Not Started',
+        notes: `Linked to Change Order #${changeOrder.id?.slice(-6)}. ${data.notes || ''}`.trim()
+      });
+
+      return changeOrder;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['changeOrders'] });
