@@ -63,12 +63,15 @@ export default function ChangeOrdersTab({ projectId, project }) {
       });
 
       // Create a linked performance obligation for this change order
+      const contractValue = (project?.contract_value || 0) + subtotal;
+      const percentage = contractValue > 0 ? (subtotal / contractValue) * 100 : 0;
+
       await base44.entities.PerformanceObligation.create({
         project_id: projectId,
         name: `Change Order: ${data.reason}`,
         description: data.description || '',
         allocated_value: subtotal,
-        percentage_of_contract: 0,
+        percentage_of_contract: Math.round(percentage * 100) / 100,
         status: 'Not Started',
         notes: `Linked to Change Order #${changeOrder.id?.slice(-6)}. ${data.notes || ''}`.trim()
       });
