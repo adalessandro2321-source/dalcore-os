@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, X, FileText } from "lucide-react";
+import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import StatusBadge from "../shared/StatusBadge";
@@ -66,6 +67,11 @@ export default function ChangeOrdersTab({ projectId, project }) {
       queryClient.invalidateQueries({ queryKey: ['projectBudgets'] });
       setShowCreateModal(false);
       resetForm();
+      toast.success('Change order created successfully');
+    },
+    onError: (error) => {
+      console.error('Failed to create change order:', error);
+      toast.error('Failed to create change order: ' + (error?.message || 'Unknown error'));
     },
   });
 
