@@ -170,6 +170,22 @@ export default function ChangeOrders() {
     mutationFn: async (data) => {
       const co = await base44.entities.ChangeOrder.create(data);
 
+      // Create a linked performance obligation for this change order
+      if (data.project_id && data.cost_impact) {
+        const project = projects.find(p => p.id === data.project_id);
+        const contractValue = (project?.contract_value || 0) + data.cost_impact;
+        const percentage = contractValue > 0 ? (data.cost_impact / contractValue) * 100 : 0;
+        await base44.entities.PerformanceObligation.create({
+          project_id: data.project_id,
+          name: `Change Order: ${data.reason || data.number || co.id?.slice(-6)}`,
+          description: data.description || '',
+          allocated_value: data.cost_impact,
+          percentage_of_contract: Math.round(percentage * 100) / 100,
+          status: 'Not Started',
+          notes: `Linked to Change Order ${data.number || '#' + co.id?.slice(-6)}. ${data.notes || ''}`.trim()
+        });
+      }
+
       if (data.attachments && data.attachments.length > 0) {
         for (const attachment of data.attachments) {
           try {
@@ -189,7 +205,6 @@ export default function ChangeOrders() {
         }
       }
 
-      // Recalculate budget only if the change order is approved
       if (data.status === 'Approved' && data.project_id) {
         try {
           await recalculateProjectBudget(data.project_id, queryClient);
@@ -201,16 +216,14 @@ export default function ChangeOrders() {
       return co;
     },
     onSuccess: async () => {
-      // Aggressive invalidation and refetch
       await queryClient.invalidateQueries({ queryKey: ['changeOrders'] });
       await queryClient.invalidateQueries({ queryKey: ['projects'] });
       await queryClient.invalidateQueries({ queryKey: ['projectBudgets'] });
       await queryClient.invalidateQueries({ queryKey: ['documents'] });
-      
-      await queryClient.refetchQueries({ queryKey: ['changeOrders'] }); // Added explicit refetch
-      
+      await queryClient.invalidateQueries({ queryKey: ['performanceObligations'] });
+      await queryClient.refetchQueries({ queryKey: ['changeOrders'] });
       setShowCreateModal(false);
-      resetFormData(); // Reset form after successful creation
+      resetFormData();
     },
   });
 

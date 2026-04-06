@@ -81,6 +81,8 @@ export default function ChangeOrdersTab({ projectId, project }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['changeOrders'] });
       queryClient.invalidateQueries({ queryKey: ['projectBudgets'] });
+      queryClient.invalidateQueries({ queryKey: ['performanceObligations'] });
+      queryClient.invalidateQueries({ queryKey: ['performanceObligations', projectId] });
       setShowCreateModal(false);
       resetForm();
       toast.success('Change order created successfully');
