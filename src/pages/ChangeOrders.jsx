@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -222,42 +221,42 @@ export default function ChangeOrders() {
 
   const columns = [
     {
-      key: 'number',
-      label: 'Number',
-      render: (co) => co.number || `CO-${co.id?.slice(0, 8)}`
+      header: 'Number',
+      accessorKey: 'number',
+      cell: (co) => co.number || `CO-${co.id?.slice(0, 8)}`
     },
     {
-      key: 'project',
-      label: 'Project',
-      render: (co) => {
+      header: 'Project',
+      accessorKey: 'project_id',
+      cell: (co) => {
         const project = projects.find(p => p.id === co.project_id);
         return project?.name || '-';
       }
     },
     {
-      key: 'reason',
-      label: 'Reason',
-      render: (co) => co.reason || '-'
+      header: 'Reason',
+      accessorKey: 'reason',
+      cell: (co) => co.reason || '-'
     },
     {
-      key: 'cost_impact',
-      label: 'Cost Impact',
-      render: (co) => formatCurrency(co.cost_impact || 0)
+      header: 'Cost Impact',
+      accessorKey: 'cost_impact',
+      cell: (co) => formatCurrency(co.cost_impact || 0)
     },
     {
-      key: 'schedule_impact',
-      label: 'Schedule Impact',
-      render: (co) => co.schedule_impact_days ? `${co.schedule_impact_days} days` : '-'
+      header: 'Schedule Impact',
+      accessorKey: 'schedule_impact_days',
+      cell: (co) => co.schedule_impact_days ? `${co.schedule_impact_days} days` : '-'
     },
     {
-      key: 'status',
-      label: 'Status',
-      render: (co) => <StatusBadge status={co.status} />
+      header: 'Status',
+      accessorKey: 'status',
+      cell: (co) => <StatusBadge status={co.status} />
     },
     {
-      key: 'date',
-      label: 'Date',
-      render: (co) => formatDate(co.created_date)
+      header: 'Date',
+      accessorKey: 'created_date',
+      cell: (co) => formatDate(co.created_date)
     }
   ];
 
