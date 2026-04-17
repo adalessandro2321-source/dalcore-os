@@ -145,9 +145,17 @@ export default function ReconciliationTab() {
   });
 
   const handleStatementUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
+    // Process each file sequentially, creating a draft for each
+    for (const file of files) {
+      await handleSingleFileUpload(file);
+    }
+    e.target.value = '';
+  };
+
+  const handleSingleFileUpload = async (file) => {
     setExtractingStatement(true);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
@@ -250,13 +258,12 @@ export default function ReconciliationTab() {
 
       // Auto-save as a new draft
       setShowNewDraftModal(true);
-      setDraftName(`${uploadType === 'payroll' ? 'Payroll' : 'CC Statement'} - ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+      setDraftName(`${file.name.replace(/\.[^/.]+$/, '')} - ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
     } catch (error) {
       console.error('Statement extraction error:', error);
-      alert(`Failed to extract transactions: ${error.message || 'Unknown error'}`);
+      alert(`Failed to extract "${file.name}": ${error.message || 'Unknown error'}`);
     } finally {
       setExtractingStatement(false);
-      e.target.value = '';
     }
   };
 
@@ -387,6 +394,7 @@ export default function ReconciliationTab() {
                 className="hidden"
                 id="statement-upload-new"
                 disabled={extractingStatement}
+                multiple
               />
               {extractingStatement && (
                 <p className="text-sm text-gray-500">Extracting transactions, please wait...</p>
