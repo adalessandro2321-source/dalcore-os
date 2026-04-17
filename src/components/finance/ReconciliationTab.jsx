@@ -123,24 +123,44 @@ export default function ReconciliationTab() {
       if (materialCosts.length > 0) await base44.entities.MaterialCost.bulkCreate(materialCosts);
       if (operatingExpenses.length > 0) await base44.entities.OperatingExpense.bulkCreate(operatingExpenses);
 
-      // Mark draft as completed
+      // Mark draft as completed only if all transactions have been imported
       if (activeDraftId) {
+        const draft = drafts.find(d => d.id === activeDraftId);
+        const previouslyImported = draft?.imported_count || 0;
+        const newImportedCount = previouslyImported + transactions.length;
+        const totalTransactions = draft?.total_transactions || extractedTransactions.length;
+        const allDone = newImportedCount >= totalTransactions;
+
         await base44.entities.ReconciliationDraft.update(activeDraftId, {
-          status: 'Completed',
-          imported_count: transactions.length
+          status: allDone ? 'Completed' : 'In Progress',
+          imported_count: newImportedCount,
+          // Remove imported transactions from the draft so they don't show up again
+          transactions: extractedTransactions.filter(t => !selectedTransactions.has(t.tempId)),
+          selected_ids: []
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, importedTransactions) => {
       queryClient.invalidateQueries({ queryKey: ['allMaterialCosts'] });
       queryClient.invalidateQueries({ queryKey: ['allOperatingExpenses'] });
       queryClient.invalidateQueries({ queryKey: ['materialCosts'] });
       queryClient.invalidateQueries({ queryKey: ['operatingExpenses'] });
       queryClient.invalidateQueries({ queryKey: ['reconciliationDrafts'] });
-      setExtractedTransactions([]);
-      setSelectedTransactions(new Set());
-      setActiveDraftId(null);
-      setView('list');
+
+      const importedIds = new Set(importedTransactions.map(t => t.tempId));
+      const remaining = extractedTransactions.filter(t => !importedIds.has(t.tempId));
+
+      if (remaining.length === 0) {
+        // All done — go back to list
+        setExtractedTransactions([]);
+        setSelectedTransactions(new Set());
+        setActiveDraftId(null);
+        setView('list');
+      } else {
+        // Still more to go — stay in editor with remaining transactions
+        setExtractedTransactions(remaining);
+        setSelectedTransactions(new Set());
+      }
     },
   });
 
@@ -338,7 +358,8 @@ export default function ReconciliationTab() {
 
   const handleImport = async () => {
     const toImport = extractedTransactions.filter(t => selectedTransactions.has(t.tempId));
-    await importMutation.mutateAsync(toImport);
+    if (toImport.length === 0) return;
+    importMutation.mutate(toImport);
   };
 
   const totalAmount = extractedTransactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
