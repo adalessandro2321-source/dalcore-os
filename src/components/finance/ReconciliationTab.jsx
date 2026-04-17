@@ -122,60 +122,40 @@ export default function ReconciliationTab() {
       
       // Different schema for payroll vs credit card
       const schema = uploadType === 'payroll' ? {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            date: { 
-              type: "string",
-              description: "Pay date in YYYY-MM-DD format"
-            },
-            employee_name: { 
-              type: "string",
-              description: "Employee name"
-            },
-            gross_pay: { 
-              type: "number",
-              description: "Gross pay amount"
-            },
-            net_pay: { 
-              type: "number",
-              description: "Net pay amount"
-            },
-            taxes: { 
-              type: "number",
-              description: "Total taxes withheld"
-            },
-            deductions: { 
-              type: "number",
-              description: "Other deductions"
+        type: "object",
+        properties: {
+          records: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                date: { type: "string", description: "Pay date in YYYY-MM-DD format" },
+                employee_name: { type: "string", description: "Employee name" },
+                gross_pay: { type: "number", description: "Gross pay amount" },
+                net_pay: { type: "number", description: "Net pay amount" },
+                taxes: { type: "number", description: "Total taxes withheld" },
+                deductions: { type: "number", description: "Other deductions" }
+              },
+              required: ["date", "employee_name", "gross_pay"]
             }
-          },
-          required: ["date", "employee_name", "gross_pay"]
+          }
         }
       } : {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            date: { 
-              type: "string",
-              description: "Transaction date in YYYY-MM-DD format"
-            },
-            transaction: { 
-              type: "string",
-              description: "Merchant or vendor name"
-            },
-            amount: { 
-              type: "number",
-              description: "Transaction amount (positive number, no currency symbols)"
-            },
-            description: { 
-              type: "string",
-              description: "Transaction description or memo"
+        type: "object",
+        properties: {
+          transactions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                date: { type: "string", description: "Transaction date in YYYY-MM-DD format" },
+                transaction: { type: "string", description: "Merchant or vendor name" },
+                amount: { type: "number", description: "Transaction amount (positive number, no currency symbols)" },
+                description: { type: "string", description: "Transaction description or memo" }
+              },
+              required: ["date", "transaction", "amount"]
             }
-          },
-          required: ["date", "transaction", "amount"]
+          }
         }
       };
       
@@ -191,7 +171,9 @@ export default function ReconciliationTab() {
         return;
       }
 
-      const transactions = result.output || [];
+      const transactions = uploadType === 'payroll'
+        ? (result.output?.records || result.output || [])
+        : (result.output?.transactions || result.output || []);
       if (transactions.length === 0) {
         alert(uploadType === 'payroll' ? 'No payroll records found in the file.' : 'No transactions found in the statement. Please ensure the file contains transaction data and try again.');
         setExtractingStatement(false);
