@@ -1,0 +1,59 @@
+{
+  "name": "ReconciliationDraft",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "User-given name for this draft (e.g. 'Amex March 2026')"
+    },
+    "upload_type": {
+      "type": "string",
+      "enum": [
+        "credit_card",
+        "payroll"
+      ],
+      "description": "Type of statement"
+    },
+    "transactions": {
+      "type": "array",
+      "description": "Extracted transactions pending review/import",
+      "items": {
+        "type": "object"
+      },
+      "default": []
+    },
+    "selected_ids": {
+      "type": "array",
+      "description": "tempIds of transactions selected for import",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "In Progress",
+        "Completed"
+      ],
+      "default": "In Progress",
+      "description": "Draft status"
+    },
+    "total_transactions": {
+      "type": "number",
+      "default": 0
+    },
+    "imported_count": {
+      "type": "number",
+      "default": 0
+    },
+    "created_by": {
+      "type": "string",
+      "description": "User email"
+    }
+  },
+  "required": [
+    "name",
+    "upload_type"
+  ]
+}
