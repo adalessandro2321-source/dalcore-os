@@ -45,6 +45,7 @@ export default function ReconciliationTab() {
   const [showNewDraftModal, setShowNewDraftModal] = React.useState(false);
   const [draftName, setDraftName] = React.useState('');
   const [savingDraft, setSavingDraft] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
   const queryClient = useQueryClient();
 
   const { data: currentUser } = useQuery({
@@ -273,8 +274,7 @@ export default function ReconciliationTab() {
       });
 
       setExtractedTransactions(processed);
-      const nonDuplicates = new Set(processed.filter(t => !t.isDuplicate).map(t => t.tempId));
-      setSelectedTransactions(nonDuplicates);
+      setSelectedTransactions(new Set());
 
       // Auto-save as a new draft
       setShowNewDraftModal(true);
@@ -361,6 +361,17 @@ export default function ReconciliationTab() {
     if (toImport.length === 0) return;
     importMutation.mutate(toImport);
   };
+
+  const filteredTransactions = React.useMemo(() => {
+    if (!searchQuery.trim()) return extractedTransactions;
+    const q = searchQuery.toLowerCase();
+    return extractedTransactions.filter(t =>
+      t.transaction?.toLowerCase().includes(q) ||
+      t.description?.toLowerCase().includes(q) ||
+      t.date?.includes(q) ||
+      String(t.amount)?.includes(q)
+    );
+  }, [extractedTransactions, searchQuery]);
 
   const totalAmount = extractedTransactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
   const selectedAmount = extractedTransactions.filter(t => selectedTransactions.has(t.tempId)).reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
@@ -571,13 +582,21 @@ export default function ReconciliationTab() {
         </CardContent>
       </Card>
 
-      {/* Selection Controls */}
-      <div className="flex items-center gap-3">
+      {/* Search + Selection Controls */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-48">
+          <Input
+            placeholder="Search transactions..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="bg-white border-[#C9C8AF] pl-4"
+          />
+        </div>
         <Button
-          onClick={() => setSelectedTransactions(new Set(extractedTransactions.filter(t => !t.isDuplicate).map(t => t.tempId)))}
+          onClick={() => setSelectedTransactions(new Set(filteredTransactions.map(t => t.tempId)))}
           variant="outline" className="border-[#C9C8AF] text-[#5A7765]"
         >
-          Select All Non-Duplicates
+          Select All{searchQuery ? ' Visible' : ''}
         </Button>
         <Button
           onClick={() => setSelectedTransactions(new Set())}
@@ -599,7 +618,10 @@ export default function ReconciliationTab() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y divide-gray-200">
-            {extractedTransactions.map((transaction) => (
+            {filteredTransactions.length === 0 && searchQuery && (
+              <p className="p-8 text-center text-gray-400">No transactions match "{searchQuery}"</p>
+            )}
+            {filteredTransactions.map((transaction) => (
               <div key={transaction.tempId} className={`p-4 ${transaction.isDuplicate ? 'bg-orange-50' : ''}`}>
                 <div className="flex items-start gap-4">
                   <div className="flex items-center h-6 pt-1">
