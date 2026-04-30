@@ -229,9 +229,11 @@ export default function ReconciliationTab() {
         return;
       }
 
+      // Handle various response shapes: {output: {transactions: []}}, {output: []}, or [] directly
+      let rawOutput = result.output ?? result;
       const rawTransactions = uploadType === 'payroll'
-        ? (result.output?.records || result.output || [])
-        : (result.output?.transactions || result.output || []);
+        ? (Array.isArray(rawOutput) ? rawOutput : (rawOutput?.records || []))
+        : (Array.isArray(rawOutput) ? rawOutput : (rawOutput?.transactions || []));
 
       if (rawTransactions.length === 0) {
         alert('No transactions found in the file.');
