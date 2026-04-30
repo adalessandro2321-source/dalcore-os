@@ -188,6 +188,7 @@ export default function ReconciliationTab() {
       const result = await base44.integrations.Core.InvokeLLM({
         prompt,
         file_urls: [file_url],
+        model: "gemini_3_flash",
         response_json_schema: {
           type: "object",
           properties: {
