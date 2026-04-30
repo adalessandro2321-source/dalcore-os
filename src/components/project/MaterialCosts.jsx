@@ -323,50 +323,23 @@ export default function MaterialCosts({ projectId, project }) {
 
     setExtractingStatement(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      
-      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url: file_url,
-        json_schema: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              date: { 
-                type: "string",
-                description: "Transaction date in YYYY-MM-DD format"
-              },
-              transaction: { 
-                type: "string",
-                description: "Merchant or vendor name"
-              },
-              amount: { 
-                type: "number",
-                description: "Transaction amount (positive number, no currency symbols)"
-              },
-              item: { 
-                type: "string",
-                description: "Category: Material, Labor, Tool, Fuel, Equipment Rental, Dump Fee, Permit, Administration, or Misc",
-                enum: ["Material", "Labor", "Tool", "Fuel", "Equipment Rental", "Dump Fee", "Permit", "Administration", "Misc"]
-              },
-              description: { 
-                type: "string",
-                description: "Transaction description or memo"
-              }
-            },
-            required: ["date", "transaction", "amount", "item"]
-          }
-        }
+      const uploadResult = await base44.integrations.Core.UploadFile({ file });
+      const fileUrl = uploadResult.file_url;
+
+      const llmResponse = await base44.integrations.Core.InvokeLLM({
+        prompt: 'Extract all transactions from this credit card or bank statement. Output ONLY a raw JSON object (no markdown, no explanation) like: {"transactions":[{"date":"YYYY-MM-DD","transaction":"vendor name","amount":0,"item":"Material","description":"memo"}]}. The "item" field must be one of: Material, Labor, Tool, Fuel, Equipment Rental, Dump Fee, Permit, Administration, Misc.',
+        file_urls: [fileUrl],
+        model: "gemini_3_flash"
       });
 
-      if (result.status === 'error') {
-        alert(`Failed to extract data: ${result.details || 'Unknown error'}. Please try again.`);
-        setExtractingStatement(false);
-        e.target.value = '';
-        return;
+      let parsed = {};
+      const responseText = typeof llmResponse === 'string' ? llmResponse : JSON.stringify(llmResponse);
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try { parsed = JSON.parse(jsonMatch[0]); } catch { parsed = {}; }
       }
 
-      const transactions = result.output || [];
+      const transactions = parsed.transactions || parsed.records || [];
       if (transactions.length === 0) {
         alert('No transactions found in the statement. Please ensure the file contains transaction data and try again.');
         setExtractingStatement(false);
