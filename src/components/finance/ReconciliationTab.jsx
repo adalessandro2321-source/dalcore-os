@@ -70,7 +70,7 @@ export default function ReconciliationTab() {
 
   const { data: drafts = [], isLoading: draftsLoading } = useQuery({
     queryKey: ['reconciliationDrafts'],
-    queryFn: () => base44.entities.ReconciliationDraft.list('-created_date'),
+    queryFn: () => base44.entities.ReconciliationDraft.filter({}, '-created_date'),
   });
 
   const saveDraftMutation = useMutation({
