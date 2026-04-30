@@ -181,59 +181,25 @@ export default function ReconciliationTab() {
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
-      const schema = uploadType === 'payroll' ? {
-        type: "object",
-        properties: {
-          records: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                date: { type: "string", description: "Pay date in YYYY-MM-DD format" },
-                employee_name: { type: "string", description: "Employee name" },
-                gross_pay: { type: "number", description: "Gross pay amount" },
-                net_pay: { type: "number", description: "Net pay amount" },
-                taxes: { type: "number", description: "Total taxes withheld" },
-                deductions: { type: "number", description: "Other deductions" }
-              },
-              required: ["date", "employee_name", "gross_pay"]
-            }
-          }
-        }
-      } : {
-        type: "object",
-        properties: {
-          transactions: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                date: { type: "string", description: "Transaction date in YYYY-MM-DD format" },
-                transaction: { type: "string", description: "Merchant or vendor name" },
-                amount: { type: "number", description: "Transaction amount (positive number, no currency symbols)" },
-                description: { type: "string", description: "Transaction description or memo" }
-              },
-              required: ["date", "transaction", "amount"]
-            }
-          }
-        }
-      };
+      const prompt = uploadType === 'payroll'
+        ? `Extract all payroll records from this document. Return a JSON object with a "records" array. Each record must have: date (YYYY-MM-DD), employee_name (string), gross_pay (number), net_pay (number), taxes (number), deductions (number).`
+        : `Extract all transactions from this credit card or bank statement. Return a JSON object with a "transactions" array. Each transaction must have: date (YYYY-MM-DD), transaction (merchant/vendor name as string), amount (positive number, no currency symbols), description (string, optional memo or category).`;
 
-      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url,
-        json_schema: schema
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt,
+        file_urls: [file_url],
+        response_json_schema: {
+          type: "object",
+          properties: {
+            transactions: { type: "array", items: { type: "object" } },
+            records: { type: "array", items: { type: "object" } }
+          }
+        }
       });
 
-      if (result.status === 'error') {
-        alert(`Failed to extract data: ${result.details || 'Unknown error'}`);
-        return;
-      }
-
-      // Handle various response shapes: {output: {transactions: []}}, {output: []}, or [] directly
-      let rawOutput = result.output ?? result;
       const rawTransactions = uploadType === 'payroll'
-        ? (Array.isArray(rawOutput) ? rawOutput : (rawOutput?.records || []))
-        : (Array.isArray(rawOutput) ? rawOutput : (rawOutput?.transactions || []));
+        ? (result?.records || result?.transactions || [])
+        : (result?.transactions || result?.records || []);
 
       if (rawTransactions.length === 0) {
         alert('No transactions found in the file.');
