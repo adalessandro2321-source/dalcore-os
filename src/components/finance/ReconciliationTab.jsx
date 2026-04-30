@@ -181,7 +181,10 @@ export default function ReconciliationTab() {
     try {
       // Step 1: upload the file to get a URL
       const uploadResult = await base44.integrations.Core.UploadFile({ file });
-      const fileUrl = uploadResult.file_url;
+      const fileUrl = String(uploadResult.file_url);
+      if (!fileUrl || !fileUrl.startsWith('http')) {
+        throw new Error('File upload failed — no URL returned.');
+      }
 
       // Step 2: use LLM with the file URL to extract transactions as plain text JSON
       const isPayroll = uploadType === 'payroll';

@@ -324,10 +324,13 @@ export default function MaterialCosts({ projectId, project }) {
     setExtractingStatement(true);
     try {
       const uploadResult = await base44.integrations.Core.UploadFile({ file });
-      const fileUrl = uploadResult.file_url;
+      const fileUrl = String(uploadResult.file_url);
+      if (!fileUrl || !fileUrl.startsWith('http')) {
+        throw new Error('File upload failed — no URL returned.');
+      }
 
       const llmResponse = await base44.integrations.Core.InvokeLLM({
-        prompt: 'Extract all transactions from this credit card or bank statement. Output ONLY a raw JSON object (no markdown, no explanation) like: {"transactions":[{"date":"YYYY-MM-DD","transaction":"vendor name","amount":0,"item":"Material","description":"memo"}]}. The "item" field must be one of: Material, Labor, Tool, Fuel, Equipment Rental, Dump Fee, Permit, Administration, Misc.',
+        prompt: 'Extract all transactions from this credit card or bank statement. Output ONLY a raw JSON object (no markdown, no explanation) in exactly this format: {"transactions":[{"date":"YYYY-MM-DD","transaction":"vendor name","amount":0,"item":"Material","description":"memo"}]}. The item field must be one of: Material, Labor, Tool, Fuel, Equipment Rental, Dump Fee, Permit, Administration, Misc.',
         file_urls: [fileUrl],
         model: "gemini_3_flash"
       });
