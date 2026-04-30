@@ -16,28 +16,30 @@ export default function Finance() {
       </div>
 
       <Tabs defaultValue="pnl" className="space-y-6">
-        <TabsList className="bg-[#F5F4F3] border border-gray-200">
-          <TabsTrigger value="pnl" className="data-[state=active]:bg-[#0E351F] data-[state=active]:text-white">
-            <TrendingUp className="w-4 h-4 mr-2" />
-            P&L Statement
-          </TabsTrigger>
-          <TabsTrigger value="cash" className="data-[state=active]:bg-[#0E351F] data-[state=active]:text-white">
-            <DollarSign className="w-4 h-4 mr-2" />
-            Cash Register
-          </TabsTrigger>
-          <TabsTrigger value="obligations" className="data-[state=active]:bg-[#0E351F] data-[state=active]:text-white">
-            <FileText className="w-4 h-4 mr-2" />
-            Performance Obligations
-          </TabsTrigger>
-          <TabsTrigger value="opex" className="data-[state=active]:bg-[#0E351F] data-[state=active]:text-white">
-            <Receipt className="w-4 h-4 mr-2" />
-            Operating Expenses
-          </TabsTrigger>
-          <TabsTrigger value="reconciliation" className="data-[state=active]:bg-[#0E351F] data-[state=active]:text-white">
-            <CreditCard className="w-4 h-4 mr-2" />
-            Reconciliation
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="bg-[#F5F4F3] border border-gray-200 flex w-max min-w-full">
+            <TabsTrigger value="pnl" className="data-[state=active]:bg-[#0E351F] data-[state=active]:text-white whitespace-nowrap">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              P&L Statement
+            </TabsTrigger>
+            <TabsTrigger value="cash" className="data-[state=active]:bg-[#0E351F] data-[state=active]:text-white whitespace-nowrap">
+              <DollarSign className="w-4 h-4 mr-2" />
+              Cash Register
+            </TabsTrigger>
+            <TabsTrigger value="obligations" className="data-[state=active]:bg-[#0E351F] data-[state=active]:text-white whitespace-nowrap">
+              <FileText className="w-4 h-4 mr-2" />
+              Performance Obligations
+            </TabsTrigger>
+            <TabsTrigger value="opex" className="data-[state=active]:bg-[#0E351F] data-[state=active]:text-white whitespace-nowrap">
+              <Receipt className="w-4 h-4 mr-2" />
+              Operating Expenses
+            </TabsTrigger>
+            <TabsTrigger value="reconciliation" className="data-[state=active]:bg-[#0E351F] data-[state=active]:text-white whitespace-nowrap">
+              <CreditCard className="w-4 h-4 mr-2" />
+              Reconciliation
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="pnl">
           <ProfitLossTab />
