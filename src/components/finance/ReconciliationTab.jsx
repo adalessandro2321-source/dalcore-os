@@ -179,32 +179,33 @@ export default function ReconciliationTab() {
   const handleSingleFileUpload = async (file) => {
     setExtractingStatement(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      // Step 1: upload the file to get a URL
+      const uploadResult = await base44.integrations.Core.UploadFile({ file });
+      const fileUrl = uploadResult.file_url;
 
-      const prompt = uploadType === 'payroll'
-        ? `Extract all payroll records from this document. Return a JSON object with a "records" array. Each record must have: date (YYYY-MM-DD), employee_name (string), gross_pay (number), net_pay (number), taxes (number), deductions (number).`
-        : `Extract all transactions from this credit card or bank statement. Return a JSON object with a "transactions" array. Each transaction must have: date (YYYY-MM-DD), transaction (merchant/vendor name as string), amount (positive number, no currency symbols), description (string, optional memo or category).`;
+      // Step 2: use LLM with the file URL to extract transactions as plain text JSON
+      const isPayroll = uploadType === 'payroll';
+      const extractPrompt = isPayroll
+        ? 'Extract all payroll records from this document. Output ONLY a raw JSON object (no markdown, no explanation) like: {"records":[{"date":"YYYY-MM-DD","employee_name":"string","gross_pay":0,"net_pay":0,"taxes":0,"deductions":0}]}'
+        : 'Extract all transactions from this credit card or bank statement. Output ONLY a raw JSON object (no markdown, no explanation) like: {"transactions":[{"date":"YYYY-MM-DD","transaction":"vendor name","amount":0,"description":"memo"}]}';
 
-      const llmText = await base44.integrations.Core.InvokeLLM({
-        prompt: prompt + " Output ONLY raw JSON, no markdown, no code blocks, no explanation.",
-        file_urls: [file_url],
+      const llmResponse = await base44.integrations.Core.InvokeLLM({
+        prompt: extractPrompt,
+        file_urls: [fileUrl],
         model: "gemini_3_flash"
       });
 
-      let parsed;
-      try {
-        // Strip markdown code fences if present
-        const cleaned = typeof llmText === 'string'
-          ? llmText.replace(/```json|```/g, '').trim()
-          : JSON.stringify(llmText);
-        parsed = JSON.parse(cleaned);
-      } catch {
-        parsed = {};
+      // Step 3: parse the plain text response
+      let parsed = {};
+      const responseText = typeof llmResponse === 'string' ? llmResponse : JSON.stringify(llmResponse);
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try { parsed = JSON.parse(jsonMatch[0]); } catch { parsed = {}; }
       }
 
-      const rawTransactions = uploadType === 'payroll'
-        ? (parsed?.records || parsed?.transactions || [])
-        : (parsed?.transactions || parsed?.records || []);
+      const rawTransactions = isPayroll
+        ? (parsed.records || parsed.transactions || [])
+        : (parsed.transactions || parsed.records || []);
 
       if (rawTransactions.length === 0) {
         alert('No transactions found in the file.');
@@ -212,7 +213,7 @@ export default function ReconciliationTab() {
       }
 
       const processed = rawTransactions.map((t, index) => {
-        if (uploadType === 'payroll') {
+        if (isPayroll) {
           return {
             ...t,
             tempId: `temp-${index}`,
