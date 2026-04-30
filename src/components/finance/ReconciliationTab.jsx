@@ -185,22 +185,26 @@ export default function ReconciliationTab() {
         ? `Extract all payroll records from this document. Return a JSON object with a "records" array. Each record must have: date (YYYY-MM-DD), employee_name (string), gross_pay (number), net_pay (number), taxes (number), deductions (number).`
         : `Extract all transactions from this credit card or bank statement. Return a JSON object with a "transactions" array. Each transaction must have: date (YYYY-MM-DD), transaction (merchant/vendor name as string), amount (positive number, no currency symbols), description (string, optional memo or category).`;
 
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt,
+      const llmText = await base44.integrations.Core.InvokeLLM({
+        prompt: prompt + " Output ONLY raw JSON, no markdown, no code blocks, no explanation.",
         file_urls: [file_url],
-        model: "gemini_3_flash",
-        response_json_schema: {
-          type: "object",
-          properties: {
-            transactions: { type: "array", items: { type: "object" } },
-            records: { type: "array", items: { type: "object" } }
-          }
-        }
+        model: "gemini_3_flash"
       });
 
+      let parsed;
+      try {
+        // Strip markdown code fences if present
+        const cleaned = typeof llmText === 'string'
+          ? llmText.replace(/```json|```/g, '').trim()
+          : JSON.stringify(llmText);
+        parsed = JSON.parse(cleaned);
+      } catch {
+        parsed = {};
+      }
+
       const rawTransactions = uploadType === 'payroll'
-        ? (result?.records || result?.transactions || [])
-        : (result?.transactions || result?.records || []);
+        ? (parsed?.records || parsed?.transactions || [])
+        : (parsed?.transactions || parsed?.records || []);
 
       if (rawTransactions.length === 0) {
         alert('No transactions found in the file.');
