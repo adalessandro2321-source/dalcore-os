@@ -60,6 +60,7 @@ export default function MaterialCosts({ projectId, project }) {
   const [extractingStatement, setExtractingStatement] = React.useState(false);
   const [extractedTransactions, setExtractedTransactions] = React.useState([]);
   const [expandedTransaction, setExpandedTransaction] = React.useState(null);
+  const [newCOName, setNewCOName] = React.useState('');
   const queryClient = useQueryClient();
 
   const { data: currentUser } = useQuery({
@@ -74,7 +75,9 @@ export default function MaterialCosts({ projectId, project }) {
     item: 'Material',
     description: '',
     notes: '',
-    approved: currentUser?.role === 'admin' // Initialize based on user role, defaults to false if currentUser is not loaded yet or not admin
+    approved: currentUser?.role === 'admin',
+    change_order_id: '',
+    new_co_name: ''
   });
 
   const { data: materialCosts = [], isLoading } = useQuery({
@@ -98,6 +101,15 @@ export default function MaterialCosts({ projectId, project }) {
   const { data: allMaterialCosts = [] } = useQuery({
     queryKey: ['allMaterialCosts'],
     queryFn: () => base44.entities.MaterialCost.list(),
+  });
+
+  const { data: changeOrders = [] } = useQuery({
+    queryKey: ['changeOrders', projectId],
+    queryFn: async () => {
+      const all = await base44.entities.ChangeOrder.list();
+      return all.filter(co => co.project_id === projectId);
+    },
+    enabled: !!projectId,
   });
 
   const cogsCategories = [
@@ -139,8 +151,13 @@ export default function MaterialCosts({ projectId, project }) {
         project_id: projectId,
         date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
         entered_by: currentUser?.email || '',
-        approved: data.approved || false
+        approved: data.approved || false,
+        change_order_id: (data.change_order_id && data.change_order_id !== '__new__') ? data.change_order_id : undefined
       });
+      // Apply to change order if selected
+      if (data.change_order_id) {
+        await applyToChangeOrder(data, data.change_order_id, data.new_co_name);
+      }
       // Recalculate budget if approved immediately
       if (data.approved) {
         await recalculateProjectBudget(projectId);
@@ -317,6 +334,48 @@ export default function MaterialCosts({ projectId, project }) {
     queryClient.invalidateQueries({ queryKey: ['projects'] }); // Invalidate projects to update overall budget
   };
 
+  // Apply a cost to a change order (create new or append line item to existing)
+  const applyToChangeOrder = async (cost, changeOrderId, newCOReasonName) => {
+    const lineItem = {
+      type: 'Addition',
+      description: `${cost.transaction}${cost.description ? ' - ' + cost.description : ''}`,
+      quantity: 1,
+      unit_cost: 0,
+      material_cost: parseFloat(cost.amount) || 0,
+      labor_hours: 0,
+      total: parseFloat(cost.amount) || 0,
+      notes: cost.notes || ''
+    };
+
+    if (changeOrderId === '__new__') {
+      // Create a new CO
+      const reason = newCOReasonName || cost.transaction || 'New Change Order';
+      const subtotal = parseFloat(cost.amount) || 0;
+      await base44.entities.ChangeOrder.create({
+        project_id: projectId,
+        reason,
+        description: cost.description || '',
+        line_items: [lineItem],
+        subtotal,
+        cost_impact: subtotal,
+        status: 'Draft'
+      });
+    } else if (changeOrderId) {
+      // Append to existing CO
+      const co = changeOrders.find(c => c.id === changeOrderId);
+      if (co) {
+        const newLineItems = [...(co.line_items || []), lineItem];
+        const newSubtotal = newLineItems.reduce((sum, li) => sum + (li.type === 'Credit' ? -(li.total || 0) : (li.total || 0)), 0);
+        await base44.entities.ChangeOrder.update(changeOrderId, {
+          line_items: newLineItems,
+          subtotal: newSubtotal,
+          cost_impact: newSubtotal
+        });
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ['changeOrders', projectId] });
+  };
+
   const handleStatementUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -387,10 +446,19 @@ export default function MaterialCosts({ projectId, project }) {
       description: t.description || '',
       notes: t.notes || '',
       entered_by: currentUser?.email || '',
-      approved: t.approved || false
+      approved: t.approved || false,
+      change_order_id: (t.change_order_id && t.change_order_id !== '__new__') ? t.change_order_id : undefined
     }));
 
     await base44.entities.MaterialCost.bulkCreate(costsToCreate);
+
+    // Apply to change orders where set
+    for (const t of extractedTransactions) {
+      if (t.change_order_id) {
+        await applyToChangeOrder(t, t.change_order_id, t.new_co_name);
+      }
+    }
+
     queryClient.invalidateQueries({ queryKey: ['materialCosts', projectId] });
     queryClient.invalidateQueries({ queryKey: ['projectBudget', projectId] });
     queryClient.invalidateQueries({ queryKey: ['project', projectId] });
@@ -676,6 +744,7 @@ export default function MaterialCosts({ projectId, project }) {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-[#181E18] uppercase">Description</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-[#181E18] uppercase">Receipt</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-[#181E18] uppercase">Notes</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[#181E18] uppercase">Change Order</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-[#181E18] uppercase">Approved</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-[#181E18] uppercase">Actions</th>
                   </tr>
@@ -830,6 +899,15 @@ export default function MaterialCosts({ projectId, project }) {
                             />
                           ) : (
                             <span className="text-[#5A7765] truncate block">{cost.notes || '-'}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          {cost.change_order_id ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                              {changeOrders.find(co => co.id === cost.change_order_id)?.reason || 'Change Order'}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">—</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm text-center">
@@ -1076,6 +1154,34 @@ export default function MaterialCosts({ projectId, project }) {
                               rows={2}
                             />
                           </div>
+                          <div className="col-span-2">
+                            <label className="text-xs font-medium text-[#5A7765] mb-1 block">Apply to Change Order <span className="text-gray-400">(optional)</span></label>
+                            <Select
+                              value={transaction.change_order_id || ''}
+                              onValueChange={(value) => handleUpdateExtractedTransaction(transaction.tempId, 'change_order_id', value)}
+                            >
+                              <SelectTrigger className="bg-white border-[#C9C8AF] text-[#181E18] h-8 text-sm">
+                                <SelectValue placeholder="None — standard project cost" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={null}>None — standard project cost</SelectItem>
+                                <SelectItem value="__new__">+ Create New Change Order</SelectItem>
+                                {changeOrders.map(co => (
+                                  <SelectItem key={co.id} value={co.id}>
+                                    {co.number ? `CO# ${co.number} — ` : ''}{co.reason} ({co.status})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {transaction.change_order_id === '__new__' && (
+                              <Input
+                                className="mt-1 bg-white border-[#C9C8AF] text-[#181E18] h-8 text-sm"
+                                placeholder="New change order reason/title"
+                                value={transaction.new_co_name || ''}
+                                onChange={(e) => handleUpdateExtractedTransaction(transaction.tempId, 'new_co_name', e.target.value)}
+                              />
+                            )}
+                          </div>
                         </div>
                       )}
                     </CardContent>
@@ -1194,6 +1300,38 @@ export default function MaterialCosts({ projectId, project }) {
               />
             </div>
 
+            <div>
+              <label className="text-sm font-medium text-[#5A7765]">Apply to Change Order <span className="text-xs text-gray-400">(optional)</span></label>
+              <Select
+                value={newCost.change_order_id || ''}
+                onValueChange={(value) => setNewCost({...newCost, change_order_id: value, new_co_name: ''})}
+              >
+                <SelectTrigger className="bg-white border-[#C9C8AF] text-[#181E18]">
+                  <SelectValue placeholder="None — standard project cost" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={null}>None — standard project cost</SelectItem>
+                  <SelectItem value="__new__">+ Create New Change Order</SelectItem>
+                  {changeOrders.map(co => (
+                    <SelectItem key={co.id} value={co.id}>
+                      {co.number ? `CO# ${co.number} — ` : ''}{co.reason} ({co.status})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {newCost.change_order_id === '__new__' && (
+                <Input
+                  className="mt-2 bg-white border-[#C9C8AF] text-[#181E18]"
+                  placeholder="New change order reason/title"
+                  value={newCost.new_co_name || ''}
+                  onChange={(e) => setNewCost({...newCost, new_co_name: e.target.value})}
+                />
+              )}
+              {newCost.change_order_id && newCost.change_order_id !== '__new__' && (
+                <p className="text-xs text-blue-600 mt-1">This cost will be added as a line item to the selected change order.</p>
+              )}
+            </div>
+
             {currentUser?.role === 'admin' && (
               <div 
                 className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
@@ -1243,7 +1381,9 @@ export default function MaterialCosts({ projectId, project }) {
                     item: 'Material',
                     description: '',
                     notes: '',
-                    approved: currentUser?.role === 'admin' // Reset approved status on cancel
+                    approved: currentUser?.role === 'admin',
+                    change_order_id: '',
+                    new_co_name: ''
                   });
                 }}
                 className="border-[#C9C8AF] text-[#5A7765] hover:bg-[#F0F0EE]"

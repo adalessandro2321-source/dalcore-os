@@ -58,6 +58,11 @@ export default function ReconciliationTab() {
     queryFn: () => base44.entities.Project.list(),
   });
 
+  const { data: allChangeOrders = [] } = useQuery({
+    queryKey: ['allChangeOrders'],
+    queryFn: () => base44.entities.ChangeOrder.list(),
+  });
+
   const { data: existingMaterialCosts = [] } = useQuery({
     queryKey: ['allMaterialCosts'],
     queryFn: () => base44.entities.MaterialCost.list(),
@@ -124,6 +129,13 @@ export default function ReconciliationTab() {
       if (materialCosts.length > 0) await base44.entities.MaterialCost.bulkCreate(materialCosts);
       if (operatingExpenses.length > 0) await base44.entities.OperatingExpense.bulkCreate(operatingExpenses);
 
+      // Apply to change orders where assigned
+      for (const t of transactions) {
+        if (t.change_order_id && t.type === 'MaterialCost' && t.project_id) {
+          await applyTransactionToChangeOrder(t, t.change_order_id, t.new_co_name);
+        }
+      }
+
       // Mark draft as completed only if all transactions have been imported
       if (activeDraftId) {
         const draft = drafts.find(d => d.id === activeDraftId);
@@ -164,6 +176,46 @@ export default function ReconciliationTab() {
       }
     },
   });
+
+  // Helper to apply a transaction cost to a change order
+  const applyTransactionToChangeOrder = async (transaction, changeOrderId, newCOName) => {
+    const amount = parseFloat(transaction.amount) || 0;
+    const lineItem = {
+      type: 'Addition',
+      description: `${transaction.transaction}${transaction.description ? ' - ' + transaction.description : ''}`,
+      quantity: 1,
+      unit_cost: 0,
+      material_cost: amount,
+      labor_hours: 0,
+      total: amount,
+      notes: transaction.notes || ''
+    };
+
+    if (changeOrderId === '__new__') {
+      const reason = newCOName || transaction.transaction || 'New Change Order';
+      await base44.entities.ChangeOrder.create({
+        project_id: transaction.project_id,
+        reason,
+        description: transaction.description || '',
+        line_items: [lineItem],
+        subtotal: amount,
+        cost_impact: amount,
+        status: 'Draft'
+      });
+    } else {
+      const co = allChangeOrders.find(c => c.id === changeOrderId);
+      if (co) {
+        const newLineItems = [...(co.line_items || []), lineItem];
+        const newSubtotal = newLineItems.reduce((sum, li) => sum + (li.type === 'Credit' ? -(li.total || 0) : (li.total || 0)), 0);
+        await base44.entities.ChangeOrder.update(changeOrderId, {
+          line_items: newLineItems,
+          subtotal: newSubtotal,
+          cost_impact: newSubtotal
+        });
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ['allChangeOrders'] });
+  };
 
   const handleStatementUpload = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -633,6 +685,11 @@ export default function ReconciliationTab() {
                               <AlertCircle className="w-3 h-3 mr-1" />Possible Duplicate
                             </span>
                           )}
+                          {transaction.change_order_id && (
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                              {transaction.change_order_id === '__new__' ? '+ New CO' : `CO: ${allChangeOrders.find(c => c.id === transaction.change_order_id)?.reason || 'Selected'}`}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-4 text-sm text-[#5A7765]">
                           <span>{formatDate(transaction.date)}</span>
@@ -699,6 +756,34 @@ export default function ReconciliationTab() {
                               {MATERIAL_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                             </SelectContent>
                           </Select>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-xs font-medium text-[#5A7765] mb-1 block">Apply to Change Order <span className="text-gray-400">(optional)</span></label>
+                          <Select
+                            value={transaction.change_order_id || ''}
+                            onValueChange={v => handleUpdateTransaction(transaction.tempId, 'change_order_id', v)}
+                          >
+                            <SelectTrigger className="bg-white border-[#C9C8AF] h-8 text-sm"><SelectValue placeholder="None — standard project cost" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={null}>None — standard project cost</SelectItem>
+                              <SelectItem value="__new__">+ Create New Change Order</SelectItem>
+                              {allChangeOrders
+                                .filter(co => !transaction.project_id || co.project_id === transaction.project_id)
+                                .map(co => (
+                                  <SelectItem key={co.id} value={co.id}>
+                                    {co.number ? `CO# ${co.number} — ` : ''}{co.reason} ({co.status})
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          {transaction.change_order_id === '__new__' && (
+                            <Input
+                              className="mt-1 bg-white border-[#C9C8AF] h-8 text-sm"
+                              placeholder="New change order reason/title"
+                              value={transaction.new_co_name || ''}
+                              onChange={e => handleUpdateTransaction(transaction.tempId, 'new_co_name', e.target.value)}
+                            />
+                          )}
                         </div>
                       </>
                     ) : (

@@ -1,0 +1,69 @@
+{
+  "name": "MaterialCost",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Associated project"
+    },
+    "change_order_id": {
+      "type": "string",
+      "description": "Associated change order (if this cost is part of a CO)"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Transaction date"
+    },
+    "transaction": {
+      "type": "string",
+      "description": "Vendor or card charge"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Cost amount"
+    },
+    "item": {
+      "type": "string",
+      "enum": [
+        "Material",
+        "Labor",
+        "Tool",
+        "Fuel",
+        "Equipment Rental",
+        "Dump Fee",
+        "Permit",
+        "Administration",
+        "Misc"
+      ],
+      "description": "Category"
+    },
+    "description": {
+      "type": "string",
+      "description": "Item description"
+    },
+    "receipt_image": {
+      "type": "string",
+      "description": "Receipt image URL"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "entered_by": {
+      "type": "string",
+      "description": "User email who entered this"
+    },
+    "approved": {
+      "type": "boolean",
+      "default": false,
+      "description": "Finance approval status"
+    }
+  },
+  "required": [
+    "project_id",
+    "date",
+    "transaction",
+    "amount",
+    "item"
+  ]
+}
