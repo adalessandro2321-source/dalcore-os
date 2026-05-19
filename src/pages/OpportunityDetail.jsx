@@ -5,7 +5,9 @@ import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Edit, Trash2, FileText, Plus, Clock, CheckCircle, FolderOpen } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Edit, Trash2, FileText, Plus, Clock, CheckCircle, FolderOpen, Upload, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import StatusBadge from "../components/shared/StatusBadge";
 import { formatDate, formatCurrency } from "../components/shared/DateFormatter";
@@ -13,12 +15,16 @@ import EditOpportunityModal from "../components/opportunity/EditOpportunityModal
 import OpportunityFolders from "../components/opportunity/OpportunityFolders";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 
 export default function OpportunityDetail() {
   const [showEditModal, setShowEditModal] = React.useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [showDeleteEstimateConfirm, setShowDeleteEstimateConfirm] = React.useState(false);
   const [estimateToDeleteId, setEstimateToDeleteId] = React.useState(null);
+  const [showUploadModal, setShowUploadModal] = React.useState(false);
+  const [uploadFile, setUploadFile] = React.useState(null);
+  const [isExtracting, setIsExtracting] = React.useState(false);
 
   const urlParams = new URLSearchParams(window.location.search);
   const opportunityId = urlParams.get('id');
@@ -100,6 +106,66 @@ export default function OpportunityDetail() {
   const handleDeleteEstimate = () => {
     if (estimateToDeleteId) {
       deleteEstimateMutation.mutate(estimateToDeleteId);
+    }
+  };
+
+  const handleUploadEstimate = async () => {
+    if (!uploadFile) { toast.error('Please select a file'); return; }
+    setIsExtracting(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file: uploadFile });
+      const llmResponse = await base44.integrations.Core.InvokeLLM({
+        prompt: `Extract construction estimate data from this document. Return a JSON object with: name (project name), project_address, labor_rate (number), labor_hours (number), markup_percent (number), sales_tax_rate (number), permit_cost (number), task_line_items (array of {description, quantity, unit_cost, material_cost, labor_hours, total, notes}), subcontractor_line_items (array of {name, sub_cost, labor_hours, total, notes}). Extract every cost row. Put trade/subcontractor work in subcontractor_line_items, materials/labor in task_line_items.`,
+        file_urls: [file_url],
+        response_json_schema: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            project_address: { type: "string" },
+            labor_rate: { type: "number" },
+            labor_hours: { type: "number" },
+            markup_percent: { type: "number" },
+            sales_tax_rate: { type: "number" },
+            permit_cost: { type: "number" },
+            task_line_items: { type: "array", items: { type: "object" } },
+            subcontractor_line_items: { type: "array", items: { type: "object" } }
+          }
+        },
+        model: "gemini_3_flash"
+      });
+      const extracted = typeof llmResponse === 'string' ? JSON.parse(llmResponse) : llmResponse;
+      const newEstimate = await base44.entities.Estimate.create({
+        name: extracted.name || uploadFile.name.replace(/\.[^/.]+$/, '') || opportunity.name,
+        opportunity_id: opportunityId,
+        project_address: extracted.project_address || '',
+        labor_rate: extracted.labor_rate || 75,
+        labor_hours: extracted.labor_hours || 0,
+        markup_percent: extracted.markup_percent || 15,
+        sales_tax_rate: extracted.sales_tax_rate || 7,
+        permit_cost: extracted.permit_cost || 0,
+        task_line_items: (extracted.task_line_items || []).map(i => ({
+          description: i.description || '', quantity: i.quantity || 1, unit_cost: i.unit_cost || 0,
+          material_cost: i.material_cost || (i.quantity || 1) * (i.unit_cost || 0),
+          labor_hours: i.labor_hours || 0, total: i.total || i.material_cost || 0, notes: i.notes || ''
+        })),
+        subcontractor_line_items: (extracted.subcontractor_line_items || []).map(i => ({
+          name: i.name || 'Subcontractor', unit_cost: 0, sub_cost: i.sub_cost || 0,
+          labor_hours: i.labor_hours || 0, total: i.total || i.sub_cost || 0, notes: i.notes || ''
+        })),
+        status: 'Draft'
+      });
+      // Set as the opportunity's baseline estimate
+      await base44.entities.Opportunity.update(opportunityId, { estimate_id: newEstimate.id });
+      queryClient.invalidateQueries({ queryKey: ['estimates', opportunityId] });
+      queryClient.invalidateQueries({ queryKey: ['opportunity', opportunityId] });
+      setShowUploadModal(false);
+      setUploadFile(null);
+      toast.success('Estimate imported! Review and adjust the line items.');
+      navigate(createPageUrl(`CreateEstimate?id=${newEstimate.id}`));
+    } catch (error) {
+      toast.error('Failed to extract estimate: ' + error.message);
+    } finally {
+      setIsExtracting(false);
     }
   };
 
@@ -394,13 +460,23 @@ export default function OpportunityDetail() {
             <CardHeader className="border-b border-gray-300">
               <div className="flex items-center justify-between">
                 <CardTitle>Estimates</CardTitle>
-                <Button
-                  onClick={() => navigate(createPageUrl(`CreateEstimate?opportunityId=${opportunityId}`))}
-                  className="bg-[#0E351F] hover:bg-[#14503C] text-white"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Estimate
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setShowUploadModal(true)}
+                    variant="outline"
+                    className="border-gray-300 text-gray-700"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Estimate
+                  </Button>
+                  <Button
+                    onClick={() => navigate(createPageUrl(`CreateEstimate?opportunityId=${opportunityId}`))}
+                    className="bg-[#0E351F] hover:bg-[#14503C] text-white"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Estimate
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -514,6 +590,47 @@ export default function OpportunityDetail() {
                 disabled={deleteMutation.isPending}
               >
                 {deleteMutation.isPending ? 'Deleting...' : 'Delete Opportunity'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Estimate Modal */}
+      <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+        <DialogContent className="bg-[#F5F4F3] border-gray-300 text-gray-900 max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import Estimate from File</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Upload Estimate File</Label>
+              <Input
+                type="file"
+                accept=".pdf,.xlsx,.xls,.csv,.docx,.doc"
+                onChange={(e) => setUploadFile(e.target.files[0])}
+                className="bg-white border-gray-300"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Accepts PDF, Excel (.xlsx/.xls), CSV, or Word documents. AI will extract all line items and costs. This estimate will be linked to <strong>{opportunity?.name}</strong> and serve as the budget baseline when converted to a project.
+              </p>
+            </div>
+            {isExtracting && (
+              <div className="flex items-center gap-2 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Analyzing file and extracting estimate data... This may take a moment.</span>
+              </div>
+            )}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => { setShowUploadModal(false); setUploadFile(null); }} disabled={isExtracting} className="border-gray-300">
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUploadEstimate}
+                className="bg-[#0E351F] hover:bg-[#14503C] text-white"
+                disabled={!uploadFile || isExtracting}
+              >
+                {isExtracting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Extracting...</> : <><Upload className="w-4 h-4 mr-2" />Import Estimate</>}
               </Button>
             </div>
           </div>
