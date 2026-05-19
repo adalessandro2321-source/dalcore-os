@@ -248,6 +248,27 @@ export default function MaterialCosts({ projectId, project }) {
       oldProjectId: cost?.project_id 
     });
 
+    // If CO was removed or changed, remove the matching line item from the old CO
+    if (previousCOId && previousCOId !== newCOId) {
+      const oldCO = changeOrders.find(c => c.id === previousCOId);
+      if (oldCO) {
+        const originalDescription = `${cost.transaction}${cost.description ? ' - ' + cost.description : ''}`;
+        const originalAmount = parseFloat(cost.amount) || 0;
+        // Remove the first line item that matches description and amount
+        const updatedLineItems = [...(oldCO.line_items || [])];
+        const matchIdx = updatedLineItems.findIndex(li =>
+          li.description === originalDescription && li.total === originalAmount
+        );
+        if (matchIdx !== -1) updatedLineItems.splice(matchIdx, 1);
+        const newSubtotal = updatedLineItems.reduce((sum, li) => sum + (li.type === 'Credit' ? -(li.total || 0) : (li.total || 0)), 0);
+        await base44.entities.ChangeOrder.update(previousCOId, {
+          line_items: updatedLineItems,
+          subtotal: newSubtotal,
+          cost_impact: newSubtotal
+        });
+      }
+    }
+
     // If a change order was newly assigned (or changed), add a line item to it
     if (newCOId && newCOId !== previousCOId) {
       const co = changeOrders.find(c => c.id === newCOId);
@@ -270,9 +291,10 @@ export default function MaterialCosts({ projectId, project }) {
           subtotal: newSubtotal,
           cost_impact: newSubtotal
         });
-        queryClient.invalidateQueries({ queryKey: ['changeOrders', projectId] });
       }
     }
+
+    queryClient.invalidateQueries({ queryKey: ['changeOrders', projectId] });
 
     setShowEditModal(false);
   };
