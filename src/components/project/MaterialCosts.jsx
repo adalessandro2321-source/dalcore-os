@@ -234,16 +234,46 @@ export default function MaterialCosts({ projectId, project }) {
     setShowEditModal(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     const cost = materialCosts.find(c => c.id === editingId);
+    const previousCOId = cost?.change_order_id;
+    const newCOId = editData.change_order_id || undefined;
+
     updateMutation.mutate({ 
       id: editingId, 
       data: {
         ...editData,
-        change_order_id: (editData.change_order_id && editData.change_order_id !== '__new__') ? editData.change_order_id : undefined,
+        change_order_id: newCOId,
       },
       oldProjectId: cost?.project_id 
     });
+
+    // If a change order was newly assigned (or changed), add a line item to it
+    if (newCOId && newCOId !== previousCOId) {
+      const co = changeOrders.find(c => c.id === newCOId);
+      if (co) {
+        const amount = parseFloat(editData.amount) || 0;
+        const lineItem = {
+          type: 'Addition',
+          description: `${editData.transaction}${editData.description ? ' - ' + editData.description : ''}`,
+          quantity: 1,
+          unit_cost: 0,
+          material_cost: amount,
+          labor_hours: 0,
+          total: amount,
+          notes: editData.notes || ''
+        };
+        const newLineItems = [...(co.line_items || []), lineItem];
+        const newSubtotal = newLineItems.reduce((sum, li) => sum + (li.type === 'Credit' ? -(li.total || 0) : (li.total || 0)), 0);
+        await base44.entities.ChangeOrder.update(newCOId, {
+          line_items: newLineItems,
+          subtotal: newSubtotal,
+          cost_impact: newSubtotal
+        });
+        queryClient.invalidateQueries({ queryKey: ['changeOrders', projectId] });
+      }
+    }
+
     setShowEditModal(false);
   };
 
