@@ -51,6 +51,7 @@ const CATEGORY_COLORS = {
 export default function MaterialCosts({ projectId, project }) {
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [showStatementModal, setShowStatementModal] = React.useState(false);
+  const [showEditModal, setShowEditModal] = React.useState(false);
   const [editingId, setEditingId] = React.useState(null);
   const [editData, setEditData] = React.useState({});
   const [uploadingReceipt, setUploadingReceipt] = React.useState(null);
@@ -220,28 +221,36 @@ export default function MaterialCosts({ projectId, project }) {
   const handleStartEdit = (cost) => {
     setEditingId(cost.id);
     setEditData({
-      date: cost.date,
+      date: cost.date ? cost.date.substring(0, 10) : '',
       transaction: cost.transaction,
       amount: cost.amount,
       item: cost.item,
-      description: cost.description,
-      notes: cost.notes,
-      project_id: cost.project_id
+      description: cost.description || '',
+      notes: cost.notes || '',
+      project_id: cost.project_id,
+      change_order_id: cost.change_order_id || '',
+      approved: cost.approved || false,
     });
+    setShowEditModal(true);
   };
 
   const handleSaveEdit = () => {
     const cost = materialCosts.find(c => c.id === editingId);
     updateMutation.mutate({ 
       id: editingId, 
-      data: editData,
+      data: {
+        ...editData,
+        change_order_id: (editData.change_order_id && editData.change_order_id !== '__new__') ? editData.change_order_id : undefined,
+      },
       oldProjectId: cost?.project_id 
     });
+    setShowEditModal(false);
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditData({});
+    setShowEditModal(false);
   };
 
   const handleToggleApprove = (cost) => {
@@ -750,252 +759,126 @@ export default function MaterialCosts({ projectId, project }) {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-[#C9C8AF]">
-                  {filteredCosts.map((cost) => {
-                    const isEditing = editingId === cost.id;
-                    const isUnapproved = !cost.approved;
-
-                    return (
-                      <tr
-                        key={cost.id}
-                        className={`hover:bg-gray-50 transition-colors ${isUnapproved ? 'bg-yellow-50' : ''}`}
-                      >
-                        <td className="px-4 py-3 text-sm">
-                          {isEditing ? (
-                            <Input
-                              type="date"
-                              value={editData.date || ''}
-                              onChange={(e) => setEditData({...editData, date: e.target.value})}
-                              className="bg-white border-[#C9C8AF] text-[#181E18] text-sm h-8"
+                  {filteredCosts.map((cost) => (
+                    <tr
+                      key={cost.id}
+                      className={`hover:bg-gray-50 transition-colors ${!cost.approved ? 'bg-yellow-50' : ''}`}
+                    >
+                      <td className="px-4 py-3 text-sm">
+                        <span className="text-[#181E18]">{formatDate(cost.date)}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="text-[#181E18]">
+                          {allProjects.find(p => p.id === cost.project_id)?.name || '-'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="text-[#181E18]">{cost.transaction}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right">
+                        <span className="font-medium text-[#181E18]">{formatCurrency(cost.amount)}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span
+                          className="inline-flex items-center px-2 py-1 rounded text-xs font-medium"
+                          style={{
+                            backgroundColor: `${CATEGORY_COLORS[cost.item]}20`,
+                            color: CATEGORY_COLORS[cost.item]
+                          }}
+                        >
+                          {cost.item}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm max-w-xs">
+                        <span className="text-[#5A7765] truncate block">{cost.description || '-'}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center">
+                        {cost.receipt_image ? (
+                          <button
+                            onClick={() => window.open(cost.receipt_image, '_blank')}
+                            className="inline-flex items-center gap-1 text-[#0E351F] hover:text-[#3B5B48]"
+                          >
+                            <ImageIcon className="w-4 h-4" />
+                            <span className="text-xs">View</span>
+                          </button>
+                        ) : (
+                          <>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleReceiptUpload(e, cost.id)}
+                              className="hidden"
+                              id={`receipt-${cost.id}`}
                             />
-                          ) : (
-                            <span className="text-[#181E18]">{formatDate(cost.date)}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          {isEditing ? (
-                            <Select
-                              value={editData.project_id || ''}
-                              onValueChange={(value) => setEditData({...editData, project_id: value})}
-                            >
-                              <SelectTrigger className="bg-white border-[#C9C8AF] text-[#181E18] text-sm h-8 min-w-[150px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {allProjects
-                                  .filter(p => p.status !== 'Closed')
-                                  .map(proj => (
-                                    <SelectItem key={proj.id} value={proj.id}>
-                                      {proj.number ? `${proj.number} - ` : ''}{proj.name}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <span className="text-[#181E18]">
-                              {allProjects.find(p => p.id === cost.project_id)?.name || '-'}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          {isEditing ? (
-                            <Input
-                              value={editData.transaction || ''}
-                              onChange={(e) => setEditData({...editData, transaction: e.target.value})}
-                              className="bg-white border-[#C9C8AF] text-[#181E18] text-sm h-8"
-                            />
-                          ) : (
-                            <span className="text-[#181E18]">{cost.transaction}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right">
-                          {isEditing ? (
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={editData.amount || ''}
-                              onChange={(e) => setEditData({...editData, amount: parseFloat(e.target.value)})}
-                              className="bg-white border-[#C9C8AF] text-[#181E18] text-sm h-8"
-                            />
-                          ) : (
-                            <span className="font-medium text-[#181E18]">{formatCurrency(cost.amount)}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          {isEditing ? (
-                            <Select
-                              value={editData.item || ''}
-                              onValueChange={(value) => setEditData({...editData, item: value})}
-                            >
-                              <SelectTrigger className="bg-white border-[#C9C8AF] text-[#181E18] text-sm h-8">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {CATEGORIES.map(cat => (
-                                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <span 
-                              className="inline-flex items-center px-2 py-1 rounded text-xs font-medium"
-                              style={{ 
-                                backgroundColor: `${CATEGORY_COLORS[cost.item]}20`, // 20 is for 12.5% opacity
-                                color: CATEGORY_COLORS[cost.item]
-                              }}
-                            >
-                              {cost.item}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm max-w-xs">
-                          {isEditing ? (
-                            <Input
-                              value={editData.description || ''}
-                              onChange={(e) => setEditData({...editData, description: e.target.value})}
-                              className="bg-white border-[#C9C8AF] text-[#181E18] text-sm h-8"
-                            />
-                          ) : (
-                            <span className="text-[#5A7765] truncate block">{cost.description || '-'}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center">
-                          {cost.receipt_image ? (
-                            <button
-                              onClick={() => window.open(cost.receipt_image, '_blank')}
-                              className="inline-flex items-center gap-1 text-[#0E351F] hover:text-[#3B5B48]"
-                            >
-                              <ImageIcon className="w-4 h-4" />
-                              <span className="text-xs">View</span>
-                            </button>
-                          ) : (
-                            <>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => handleReceiptUpload(e, cost.id)}
-                                className="hidden"
-                                id={`receipt-${cost.id}`}
-                              />
-                              <label htmlFor={`receipt-${cost.id}`}>
-                                <Button
-                                  as="span"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-[#5A7765] hover:text-[#0E351F] cursor-pointer h-8"
-                                  disabled={uploadingReceipt === cost.id}
-                                >
-                                  <Upload className="w-4 h-4" />
-                                </Button>
-                              </label>
-                            </>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm max-w-xs">
-                          {isEditing ? (
-                            <Input
-                              value={editData.notes || ''}
-                              onChange={(e) => setEditData({...editData, notes: e.target.value})}
-                              className="bg-white border-[#C9C8AF] text-[#181E18] text-sm h-8"
-                            />
-                          ) : (
-                            <span className="text-[#5A7765] truncate block">{cost.notes || '-'}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          {cost.change_order_id ? (
-                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                              {changeOrders.find(co => co.id === cost.change_order_id)?.reason || 'Change Order'}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400 text-xs">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center">
-                          {currentUser?.role === 'admin' ? (
-                            <button
-                              onClick={() => handleToggleApprove(cost)}
-                              className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-                                cost.approved
-                                  ? 'bg-[#D4EDDA] text-[#0E351F]' // Approved: light green, dark green text
-                                  : 'bg-[#FEEBCD] text-orange-800 hover:bg-[#FCD8A6]' // Pending: light orange, orange text, slightly darker orange hover
-                              }`}
-                            >
-                              {cost.approved ? (
-                                <>
-                                  <Check className="w-3 h-3" />
-                                  Approved
-                                </>
-                              ) : (
-                                <>
-                                  <X className="w-3 h-3" />
-                                  Pending
-                                </>
-                              )}
-                            </button>
-                          ) : (
-                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                            <label htmlFor={`receipt-${cost.id}`}>
+                              <Button
+                                as="span"
+                                variant="ghost"
+                                size="sm"
+                                className="text-[#5A7765] hover:text-[#0E351F] cursor-pointer h-8"
+                                disabled={uploadingReceipt === cost.id}
+                              >
+                                <Upload className="w-4 h-4" />
+                              </Button>
+                            </label>
+                          </>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm max-w-xs">
+                        <span className="text-[#5A7765] truncate block">{cost.notes || '-'}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {cost.change_order_id ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            {changeOrders.find(co => co.id === cost.change_order_id)?.reason || 'Change Order'}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center">
+                        {currentUser?.role === 'admin' ? (
+                          <button
+                            onClick={() => handleToggleApprove(cost)}
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
                               cost.approved
-                                ? 'bg-[#D4EDDA] text-[#0E351F]'
-                                : 'bg-[#FEEBCD] text-orange-800'
-                            }`}>
-                              {cost.approved ? (
-                                <>
-                                  <Check className="w-3 h-3" />
-                                  Approved
-                                </>
-                              ) : (
-                                <>
-                                  <X className="w-3 h-3" />
-                                  Pending
-                                </>
-                              )}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right">
-                          {isEditing ? (
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleSaveEdit}
-                                className="text-[#0E351F] hover:text-[#3B5B48] h-8"
-                              >
-                                <Check className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleCancelEdit}
-                                className="text-[#5A7765] hover:text-[#181E18] h-8"
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleStartEdit(cost)}
-                                className="text-[#5A7765] hover:text-[#0E351F] h-8"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteMutation.mutate(cost.id)}
-                                className="text-[#5A7765] hover:text-red-600 h-8"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                                ? 'bg-[#D4EDDA] text-[#0E351F] hover:bg-[#b8dfc4]'
+                                : 'bg-[#FEEBCD] text-orange-800 hover:bg-[#FCD8A6]'
+                            }`}
+                            title={cost.approved ? 'Click to revoke approval' : 'Click to approve'}
+                          >
+                            {cost.approved ? <><Check className="w-3 h-3" />Approved</> : <><X className="w-3 h-3" />Pending</>}
+                          </button>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                            cost.approved ? 'bg-[#D4EDDA] text-[#0E351F]' : 'bg-[#FEEBCD] text-orange-800'
+                          }`}>
+                            {cost.approved ? <><Check className="w-3 h-3" />Approved</> : <><X className="w-3 h-3" />Pending</>}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleStartEdit(cost)}
+                            className="text-[#5A7765] hover:text-[#0E351F] h-8"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteMutation.mutate(cost.id)}
+                            className="text-[#5A7765] hover:text-red-600 h-8"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -1214,6 +1097,140 @@ export default function MaterialCosts({ projectId, project }) {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Modal */}
+      <Dialog open={showEditModal} onOpenChange={(open) => { if (!open) handleCancelEdit(); }}>
+        <DialogContent className="bg-[#F5F4F3] border-[#C9C8AF] text-[#181E18] max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Cost</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-[#5A7765]">Date</label>
+                <Input
+                  type="date"
+                  value={editData.date || ''}
+                  onChange={(e) => setEditData({...editData, date: e.target.value})}
+                  className="bg-white border-[#C9C8AF] text-[#181E18]"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-[#5A7765]">Amount</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editData.amount || ''}
+                  onChange={(e) => setEditData({...editData, amount: parseFloat(e.target.value)})}
+                  className="bg-white border-[#C9C8AF] text-[#181E18]"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-[#5A7765]">Transaction/Vendor</label>
+              <Input
+                value={editData.transaction || ''}
+                onChange={(e) => setEditData({...editData, transaction: e.target.value})}
+                className="bg-white border-[#C9C8AF] text-[#181E18]"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-[#5A7765]">Category</label>
+                <Select value={editData.item || ''} onValueChange={(v) => setEditData({...editData, item: v})}>
+                  <SelectTrigger className="bg-white border-[#C9C8AF] text-[#181E18]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-[#5A7765]">Project</label>
+                <Select value={editData.project_id || ''} onValueChange={(v) => setEditData({...editData, project_id: v})}>
+                  <SelectTrigger className="bg-white border-[#C9C8AF] text-[#181E18]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {allProjects.filter(p => p.status !== 'Closed').map(proj => (
+                      <SelectItem key={proj.id} value={proj.id}>{proj.number ? `${proj.number} - ` : ''}{proj.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-[#5A7765]">Description</label>
+              <Input
+                value={editData.description || ''}
+                onChange={(e) => setEditData({...editData, description: e.target.value})}
+                className="bg-white border-[#C9C8AF] text-[#181E18]"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-[#5A7765]">Notes</label>
+              <Textarea
+                value={editData.notes || ''}
+                onChange={(e) => setEditData({...editData, notes: e.target.value})}
+                className="bg-white border-[#C9C8AF] text-[#181E18]"
+                rows={2}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-[#5A7765]">Apply to Change Order <span className="text-xs text-gray-400">(optional)</span></label>
+              <Select
+                value={editData.change_order_id || ''}
+                onValueChange={(v) => setEditData({...editData, change_order_id: v})}
+              >
+                <SelectTrigger className="bg-white border-[#C9C8AF] text-[#181E18]">
+                  <SelectValue placeholder="None — standard project cost" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={null}>None — standard project cost</SelectItem>
+                  {changeOrders.map(co => (
+                    <SelectItem key={co.id} value={co.id}>
+                      {co.number ? `CO# ${co.number} — ` : ''}{co.reason} ({co.status})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {currentUser?.role === 'admin' && (
+              <div
+                className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                  editData.approved ? 'bg-[#D4EDDA] border-[#0E351F]' : 'bg-white border-[#C9C8AF] hover:border-[#9FA097]'
+                }`}
+                onClick={() => setEditData({...editData, approved: !editData.approved})}
+              >
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    checked={editData.approved || false}
+                    onCheckedChange={(checked) => setEditData({...editData, approved: checked})}
+                    className="data-[state=checked]:bg-[#0E351F] data-[state=checked]:border-[#0E351F]"
+                  />
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: editData.approved ? '#0E351F' : '#181E18' }}>
+                      {editData.approved ? '✓ Approved' : 'Pending Approval'}
+                    </p>
+                    <p className="text-xs text-[#5A7765]">
+                      {editData.approved ? 'This expense impacts the project budget' : 'Click to approve this expense'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={handleCancelEdit} className="border-[#C9C8AF] text-[#5A7765]">
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveEdit}
+                disabled={updateMutation.isPending}
+                className="bg-[#0E351F] hover:bg-[#3B5B48] text-white"
+              >
+                {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
