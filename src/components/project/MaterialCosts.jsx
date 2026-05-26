@@ -1,6 +1,7 @@
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import * as XLSX from 'xlsx';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -336,26 +337,35 @@ export default function MaterialCosts({ projectId, project }) {
   };
 
   const handleExportCSV = () => {
-    const csv = [
-      ['Date', 'Transaction', 'Amount', 'Category', 'Description', 'Notes', 'Entered By', 'Approved'],
-      ...filteredCosts.map(cost => [
-        cost.date,
-        cost.transaction,
-        cost.amount,
-        cost.item,
-        cost.description || '',
-        cost.notes || '',
-        cost.entered_by,
-        cost.approved ? 'Yes' : 'No'
-      ])
-    ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const data = filteredCosts.map(cost => ({
+      'Date': cost.date,
+      'Transaction': cost.transaction,
+      'Amount': cost.amount,
+      'Category': cost.item,
+      'Description': cost.description || '',
+      'Notes': cost.notes || '',
+      'Entered By': cost.entered_by,
+      'Approved': cost.approved ? 'Yes' : 'No'
+    }));
 
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${project.number}_material_costs_${formatDate(new Date(), 'yyyy-MM-dd')}.csv`;
-    a.click();
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Material Costs');
+    
+    // Set column widths
+    const colWidths = [
+      { wch: 12 }, // Date
+      { wch: 20 }, // Transaction
+      { wch: 12 }, // Amount
+      { wch: 18 }, // Category
+      { wch: 25 }, // Description
+      { wch: 25 }, // Notes
+      { wch: 15 }, // Entered By
+      { wch: 12 }  // Approved
+    ];
+    worksheet['!cols'] = colWidths;
+
+    XLSX.writeFile(workbook, `${project.number}_material_costs_${formatDate(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
   const handleImportCSV = async (e) => {
@@ -634,7 +644,7 @@ export default function MaterialCosts({ projectId, project }) {
             className="border-[#C9C8AF] text-[#5A7765] hover:bg-[#F0F0EE]"
           >
             <Download className="w-4 h-4 mr-2" />
-            Export CSV
+            Export Excel
           </Button>
 
           <input
