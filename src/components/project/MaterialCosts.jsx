@@ -886,7 +886,7 @@ export default function MaterialCosts({ projectId, project }) {
                           </>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm max-w-xs">
+                      <td className="px-4 py-3 text-sm max-w-[150px]">
                         <span className="text-[#5A7765] truncate block">{cost.notes || '-'}</span>
                       </td>
                       <td className="px-4 py-3 text-sm">
