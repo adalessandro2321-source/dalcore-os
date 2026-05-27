@@ -1112,8 +1112,8 @@ export default function MaterialCosts({ projectId, project }) {
                                 <SelectValue placeholder="None — standard project cost" />
                               </SelectTrigger>
                               <SelectContent>
-                                 <SelectItem value={null}>None — standard project cost</SelectItem>
-                                  <SelectItem value="__new__">+ Create New Change Order</SelectItem>
+                               <SelectItem value={null}>None — standard project cost</SelectItem>
+                               <SelectItem value="__new__">+ Create New Change Order</SelectItem>
                                  {changeOrders.map(co => (
                                   <SelectItem key={co.id} value={co.id}>
                                     {co.number ? `CO# ${co.number}` : co.reason?.substring(0, 20)} ({co.status})
