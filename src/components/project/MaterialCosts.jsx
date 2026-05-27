@@ -1164,7 +1164,7 @@ export default function MaterialCosts({ projectId, project }) {
 
       {/* Edit Modal */}
       <Dialog open={showEditModal} onOpenChange={(open) => { if (!open) handleCancelEdit(); }}>
-        <DialogContent className="bg-[#F5F4F3] border-[#C9C8AF] text-[#181E18] max-w-2xl">
+        <DialogContent className="bg-[#F5F4F3] border-[#C9C8AF] text-[#181E18] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Cost</DialogTitle>
           </DialogHeader>
