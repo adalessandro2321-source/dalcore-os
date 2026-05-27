@@ -890,11 +890,14 @@ export default function MaterialCosts({ projectId, project }) {
                         <span className="text-[#5A7765] truncate block">{cost.notes || '-'}</span>
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        {cost.change_order_id ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                            {changeOrders.find(co => co.id === cost.change_order_id)?.reason || 'Change Order'}
-                          </span>
-                        ) : (
+                        {cost.change_order_id ? (() => {
+                          const co = changeOrders.find(c => c.id === cost.change_order_id);
+                          return (
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                              {co?.number ? `CO# ${co.number}` : 'CO'}
+                            </span>
+                          );
+                        })() : (
                           <span className="text-gray-400 text-xs">—</span>
                         )}
                       </td>
