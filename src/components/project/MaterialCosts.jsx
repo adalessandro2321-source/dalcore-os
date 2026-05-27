@@ -1164,7 +1164,7 @@ export default function MaterialCosts({ projectId, project }) {
 
       {/* Edit Modal */}
       <Dialog open={showEditModal} onOpenChange={(open) => { if (!open) handleCancelEdit(); }}>
-        <DialogContent className="bg-[#F5F4F3] border-[#C9C8AF] text-[#181E18] max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-[#F5F4F3] border-[#C9C8AF] text-[#181E18] w-[95vw] max-w-xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Edit Cost</DialogTitle>
           </DialogHeader>
@@ -1243,8 +1243,8 @@ export default function MaterialCosts({ projectId, project }) {
                 value={editData.change_order_id || ''}
                 onValueChange={(v) => setEditData({...editData, change_order_id: v})}
               >
-                <SelectTrigger className="bg-white border-[#C9C8AF] text-[#181E18]">
-                  <SelectValue placeholder="None — standard project cost" />
+                <SelectTrigger className="bg-white border-[#C9C8AF] text-[#181E18] w-full truncate">
+                  <SelectValue placeholder="None — standard project cost" className="truncate" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={null}>None — standard project cost</SelectItem>
