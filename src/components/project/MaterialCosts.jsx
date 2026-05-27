@@ -1110,7 +1110,7 @@ export default function MaterialCosts({ projectId, project }) {
                               </SelectTrigger>
                               <SelectContent>
                                  <SelectItem value={null}>None — standard project cost</SelectItem>
-                                 <SelectItem value="__new__">+ Create New Change Order</SelectItem>
+                                  <SelectItem value="__new__">+ Create New Change Order</SelectItem>
                                  {changeOrders.map(co => (
                                   <SelectItem key={co.id} value={co.id}>
                                     {co.number ? `CO# ${co.number}` : co.reason?.substring(0, 20)} ({co.status})
@@ -1247,12 +1247,12 @@ export default function MaterialCosts({ projectId, project }) {
                   <SelectValue placeholder="None — standard project cost" className="truncate" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={null}>None — standard project cost</SelectItem>
-                  {changeOrders.map(co => (
-                    <SelectItem key={co.id} value={co.id}>
-                      {co.number ? `CO# ${co.number}` : co.reason?.substring(0, 20)} ({co.status})
-                    </SelectItem>
-                  ))}
+                 <SelectItem value={null}>None — standard project cost</SelectItem>
+                 {changeOrders.map(co => (
+                   <SelectItem key={co.id} value={co.id}>
+                     {co.number ? `CO# ${co.number}` : co.reason?.substring(0, 20)} ({co.status})
+                   </SelectItem>
+                 ))}
                 </SelectContent>
               </Select>
             </div>
@@ -1298,7 +1298,7 @@ export default function MaterialCosts({ projectId, project }) {
 
       {/* Add Modal */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="bg-[#F5F4F3] border-[#C9C8AF] text-[#181E18] max-w-2xl">
+        <DialogContent className="bg-[#F5F4F3] border-[#C9C8AF] text-[#181E18] w-[95vw] max-w-xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Add Material/Misc Cost</DialogTitle>
           </DialogHeader>
