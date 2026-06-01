@@ -268,10 +268,11 @@ export default function ReconciliationTab() {
       }
 
       const processed = rawTransactions.map((t, index) => {
+        const uniquePrefix = `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
         if (isPayroll) {
           return {
             ...t,
-            tempId: `temp-${index}`,
+            tempId: `temp-${uniquePrefix}-${index}`,
             type: 'OperatingExpense',
             category: 'Salaries & Wages',
             amount: t.gross_pay || 0,
@@ -291,7 +292,7 @@ export default function ReconciliationTab() {
         );
         return {
           ...t,
-          tempId: `temp-${index}`,
+          tempId: `temp-${uniquePrefix}-${index}`,
           type: 'MaterialCost',
           item: 'Material',
           category: 'Miscellaneous',
@@ -539,7 +540,7 @@ export default function ReconciliationTab() {
                 autoFocus
               />
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowNewDraftModal(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => { setShowNewDraftModal(false); setExtractedTransactions([]); setSelectedTransactions(new Set()); }}>Cancel</Button>
                 <Button
                   onClick={handleSaveNewDraft}
                   disabled={!draftName.trim() || savingDraft}
