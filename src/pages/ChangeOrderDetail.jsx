@@ -472,11 +472,11 @@ export default function ChangeOrderDetail() {
 
       {/* Edit Modal */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="bg-[#F5F4F3] border-gray-300 text-gray-900 max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="bg-[#F5F4F3] border-gray-300 text-gray-900 max-w-2xl flex flex-col" style={{maxHeight: '90vh'}}>
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Edit Change Order</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-1">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Change Order Number</Label>
@@ -695,7 +695,7 @@ export default function ChangeOrderDetail() {
               />
             </div>
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex justify-end gap-3 pt-4 pb-2 flex-shrink-0 sticky bottom-0 bg-[#F5F4F3] border-t border-gray-200">
               <Button
                 type="button"
                 variant="outline"
