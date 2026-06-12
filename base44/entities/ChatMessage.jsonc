@@ -1,0 +1,94 @@
+{
+  "name": "ChatMessage",
+  "type": "object",
+  "properties": {
+    "thread_id": {
+      "type": "string",
+      "description": "Parent chat thread"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "user",
+        "assistant",
+        "system"
+      ],
+      "description": "Message sender"
+    },
+    "content": {
+      "type": "string",
+      "description": "Message text (supports markdown)"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "Company",
+        "Blended",
+        "Web"
+      ],
+      "default": "Company",
+      "description": "Research mode used"
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "File URLs attached to message"
+    },
+    "citations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "internal",
+              "web"
+            ],
+            "description": "Type of citation"
+          },
+          "record_type": {
+            "type": "string"
+          },
+          "record_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "url_slug": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "published_at": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Citations to records or web sources"
+    },
+    "web_results": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "WebResult IDs used in this message"
+    },
+    "actions_run": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Actions executed (create_task, draft_email, etc.)"
+    }
+  },
+  "required": [
+    "thread_id",
+    "role",
+    "content"
+  ]
+}

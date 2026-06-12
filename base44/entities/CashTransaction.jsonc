@@ -1,0 +1,104 @@
+{
+  "name": "CashTransaction",
+  "type": "object",
+  "properties": {
+    "account": {
+      "type": "string",
+      "enum": [
+        "American Express",
+        "Chase"
+      ],
+      "default": "American Express",
+      "description": "Bank account"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Transaction date"
+    },
+    "action": {
+      "type": "string",
+      "description": "Transaction description"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Associated project (optional)"
+    },
+    "project_number": {
+      "type": "string",
+      "description": "Project number for display"
+    },
+    "other": {
+      "type": "number",
+      "default": 0,
+      "description": "Other expenses"
+    },
+    "checks_out": {
+      "type": "number",
+      "default": 0,
+      "description": "Checks paid out"
+    },
+    "adp": {
+      "type": "number",
+      "default": 0,
+      "description": "ADP payroll expenses"
+    },
+    "voids": {
+      "type": "number",
+      "default": 0,
+      "description": "Voided amounts"
+    },
+    "interest_earned": {
+      "type": "number",
+      "default": 0,
+      "description": "Interest income"
+    },
+    "wire_deposits": {
+      "type": "number",
+      "default": 0,
+      "description": "Wire transfer deposits"
+    },
+    "zelle_deposits": {
+      "type": "number",
+      "default": 0,
+      "description": "Zelle deposits"
+    },
+    "cc_deposits": {
+      "type": "number",
+      "default": 0,
+      "description": "Credit card deposits"
+    },
+    "check_deposits": {
+      "type": "number",
+      "default": 0,
+      "description": "Check deposits"
+    },
+    "balance": {
+      "type": "number",
+      "default": 0,
+      "description": "Running balance after this transaction"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    },
+    "voided": {
+      "type": "boolean",
+      "default": false,
+      "description": "Has this transaction been voided"
+    },
+    "void_of_transaction_id": {
+      "type": "string",
+      "description": "If this is a void transaction, ID of the original transaction"
+    },
+    "voided_by_transaction_id": {
+      "type": "string",
+      "description": "If this transaction was voided, ID of the voiding transaction"
+    }
+  },
+  "required": [
+    "date",
+    "action",
+    "account"
+  ]
+}

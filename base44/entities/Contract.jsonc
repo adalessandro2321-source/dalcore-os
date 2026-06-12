@@ -1,0 +1,68 @@
+{
+  "name": "Contract",
+  "type": "object",
+  "properties": {
+    "number": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "Prime",
+        "Subcontract",
+        "Purchase Order",
+        "Service"
+      ],
+      "default": "Prime"
+    },
+    "counterparty_id": {
+      "type": "string",
+      "description": "Company ID"
+    },
+    "counterparty_name": {
+      "type": "string",
+      "description": "Company name (for reference)"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "retention_percent": {
+      "type": "number"
+    },
+    "payment_terms": {
+      "type": "string"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Draft",
+        "Active",
+        "Completed",
+        "Terminated"
+      ],
+      "default": "Draft"
+    },
+    "signed_file_url": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "type",
+    "amount"
+  ]
+}

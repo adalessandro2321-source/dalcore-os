@@ -1,0 +1,225 @@
+{
+  "name": "Estimate",
+  "type": "object",
+  "properties": {
+    "number": {
+      "type": "string",
+      "description": "Estimate number"
+    },
+    "name": {
+      "type": "string",
+      "description": "Project name"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "description": "Linked opportunity"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Linked project"
+    },
+    "project_address": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "estimate_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "estimate_by": {
+      "type": "string",
+      "description": "User email who created estimate"
+    },
+    "labor_rate": {
+      "type": "number",
+      "default": 0,
+      "description": "Burdened labor rate per hour"
+    },
+    "labor_hours": {
+      "type": "number",
+      "default": 0,
+      "description": "General labor hours not in task items"
+    },
+    "administration_rate": {
+      "type": "number",
+      "default": 0,
+      "description": "Admin rate per hour"
+    },
+    "markup_percent": {
+      "type": "number",
+      "default": 0,
+      "description": "Markup percentage"
+    },
+    "gross_profit_margin_percent": {
+      "type": "number",
+      "default": 0,
+      "description": "Gross profit margin percentage"
+    },
+    "sales_tax_rate": {
+      "type": "number",
+      "default": 0,
+      "description": "Sales tax rate percentage"
+    },
+    "general_production_cost_factor": {
+      "type": "number",
+      "default": 1,
+      "description": "Factor for burden/overhead costs"
+    },
+    "admin_hours_per_8_labor_hours": {
+      "type": "number",
+      "default": 0,
+      "description": "Admin hours to add per every 8 labor hours"
+    },
+    "permit_cost": {
+      "type": "number",
+      "default": 0
+    },
+    "permit_notes": {
+      "type": "string",
+      "description": "Notes for permits section"
+    },
+    "task_line_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "unit_cost": {
+            "type": "number"
+          },
+          "material_cost": {
+            "type": "number"
+          },
+          "labor_hours": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "default": []
+    },
+    "subcontractor_line_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "unit_cost": {
+            "type": "number"
+          },
+          "sub_cost": {
+            "type": "number"
+          },
+          "labor_hours": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "default": []
+    },
+    "material_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "Total material cost (calculated)"
+    },
+    "sales_tax_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Sales tax amount (calculated)"
+    },
+    "materials_cost_plus_tax": {
+      "type": "number",
+      "default": 0,
+      "description": "Materials with tax (calculated)"
+    },
+    "total_labor_hours": {
+      "type": "number",
+      "default": 0,
+      "description": "Total labor hours (calculated)"
+    },
+    "total_admin_hours": {
+      "type": "number",
+      "default": 0,
+      "description": "Total admin hours (calculated)"
+    },
+    "labor_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "Total labor cost (calculated)"
+    },
+    "administration_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "Total admin cost (calculated)"
+    },
+    "subcontractor_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "Total subcontractor cost (calculated)"
+    },
+    "burden_overhead_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "Burden/overhead cost (calculated)"
+    },
+    "estimated_project_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "Total estimated project cost (calculated)"
+    },
+    "estimated_profit": {
+      "type": "number",
+      "default": 0,
+      "description": "Estimated profit (calculated)"
+    },
+    "estimated_selling_price": {
+      "type": "number",
+      "default": 0,
+      "description": "Estimated selling price (calculated)"
+    },
+    "sold_contract_price": {
+      "type": "number",
+      "description": "Actual sold price if awarded"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Draft",
+        "Submitted",
+        "Awarded",
+        "Lost"
+      ],
+      "default": "Draft"
+    },
+    "version": {
+      "type": "number",
+      "default": 1
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

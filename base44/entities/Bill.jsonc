@@ -1,0 +1,85 @@
+{
+  "name": "Bill",
+  "type": "object",
+  "properties": {
+    "number": {
+      "type": "string",
+      "description": "Bill number"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Associated project - REQUIRED for COGS tracking"
+    },
+    "vendor_id": {
+      "type": "string",
+      "description": "Vendor company ID"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Draft",
+        "Pending",
+        "Approved",
+        "Partial",
+        "Paid",
+        "Void"
+      ],
+      "default": "Draft",
+      "description": "Bill status"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Total bill amount"
+    },
+    "balance_open": {
+      "type": "number",
+      "default": 0,
+      "description": "Remaining balance"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "approved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "paid_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Labor - Field",
+        "Labor - Site Supervision",
+        "Materials",
+        "Subcontractor",
+        "Equipment Rental",
+        "Permits & Inspections",
+        "Waste Disposal",
+        "Site Utilities",
+        "Job-Specific Insurance",
+        "Project Management",
+        "Professional Services",
+        "Other"
+      ],
+      "description": "Bill category for COGS tracking"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "project_id",
+    "vendor_id",
+    "amount",
+    "category"
+  ]
+}

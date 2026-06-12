@@ -1,0 +1,93 @@
+{
+  "name": "BudgetRevision",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Associated project"
+    },
+    "revision_number": {
+      "type": "number",
+      "description": "Revision sequence number"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Reason for revision"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of changes"
+    },
+    "previous_total": {
+      "type": "number",
+      "default": 0,
+      "description": "Budget total before revision"
+    },
+    "new_total": {
+      "type": "number",
+      "default": 0,
+      "description": "Budget total after revision"
+    },
+    "change_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Amount of change"
+    },
+    "line_item_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "line_item_id": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "previous_amount": {
+            "type": "number"
+          },
+          "new_amount": {
+            "type": "number"
+          },
+          "change_amount": {
+            "type": "number"
+          }
+        }
+      },
+      "description": "Details of line item changes"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Draft",
+        "Pending Approval",
+        "Approved",
+        "Rejected"
+      ],
+      "default": "Draft"
+    },
+    "requested_by": {
+      "type": "string",
+      "description": "Email of user who requested"
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Email of user who approved"
+    },
+    "approved_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "rejection_reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "reason"
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "name": "Risk",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Safety",
+        "Schedule",
+        "Cost",
+        "Quality",
+        "Legal",
+        "Environmental"
+      ]
+    },
+    "probability": {
+      "type": "string",
+      "enum": [
+        "Low",
+        "Medium",
+        "High"
+      ]
+    },
+    "impact": {
+      "type": "string",
+      "enum": [
+        "Low",
+        "Medium",
+        "High"
+      ]
+    },
+    "mitigation_plan": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Identified",
+        "Monitoring",
+        "Mitigated",
+        "Occurred",
+        "Closed"
+      ],
+      "default": "Identified"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "daily_log_id": {
+      "type": "string",
+      "description": "ID of the daily log this risk was created from"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "Manual",
+        "Daily Log - Safety",
+        "Daily Log - Injury",
+        "Daily Log - Issue/Delay"
+      ],
+      "default": "Manual",
+      "description": "Where this risk originated from"
+    },
+    "mitigation_complete_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the risk mitigation was completed"
+    },
+    "mitigation_complete_by": {
+      "type": "string",
+      "description": "Email of the user who marked the risk as mitigated"
+    },
+    "last_review_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last date this risk was reviewed, for 'Monitoring' status"
+    }
+  },
+  "required": [
+    "project_id",
+    "title",
+    "category"
+  ]
+}

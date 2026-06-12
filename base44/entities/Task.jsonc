@@ -1,0 +1,86 @@
+{
+  "name": "Task",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Associated project"
+    },
+    "name": {
+      "type": "string",
+      "description": "Task name"
+    },
+    "description": {
+      "type": "string"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "finish_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "duration_days": {
+      "type": "number",
+      "description": "Calculated from finish - start"
+    },
+    "percent_complete": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 0
+    },
+    "predecessor_task_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs of predecessor tasks"
+    },
+    "successor_task_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs of successor tasks"
+    },
+    "responsible_party_id": {
+      "type": "string",
+      "description": "User email or Company ID"
+    },
+    "responsible_party_type": {
+      "type": "string",
+      "enum": [
+        "User",
+        "Company"
+      ],
+      "description": "Type of responsible party"
+    },
+    "trade": {
+      "type": "string",
+      "description": "Trade/discipline"
+    },
+    "critical": {
+      "type": "boolean",
+      "default": false,
+      "description": "Is this task on the critical path"
+    },
+    "color": {
+      "type": "string",
+      "description": "Color for Gantt chart"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "calendar_event_id": {
+      "type": "string",
+      "description": "Google Calendar event ID if synced"
+    }
+  },
+  "required": [
+    "project_id",
+    "name",
+    "start_date"
+  ]
+}

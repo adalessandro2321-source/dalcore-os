@@ -1,0 +1,91 @@
+{
+  "name": "DailyLog",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Associated project"
+    },
+    "log_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of the daily log"
+    },
+    "work_performed": {
+      "type": "string",
+      "description": "Work performed today"
+    },
+    "subcontractors": {
+      "type": "array",
+      "description": "Subcontractors on-site",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "trade": {
+            "type": "string"
+          },
+          "num_workers": {
+            "type": "number"
+          },
+          "work_performed": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "equipment_materials": {
+      "type": "array",
+      "description": "Equipment and materials used",
+      "items": {
+        "type": "string"
+      }
+    },
+    "inspections_meetings": {
+      "type": "array",
+      "description": "Inspections and meetings",
+      "items": {
+        "type": "string"
+      }
+    },
+    "safety_issues": {
+      "type": "boolean",
+      "description": "Were there any safety issues?"
+    },
+    "safety_issues_description": {
+      "type": "string"
+    },
+    "injuries_accidents": {
+      "type": "boolean",
+      "description": "Any injuries or accidents?"
+    },
+    "injuries_accidents_description": {
+      "type": "string"
+    },
+    "issues_delays": {
+      "type": "string",
+      "description": "Issues and delays"
+    },
+    "notes_next_steps": {
+      "type": "string",
+      "description": "Notes and next steps"
+    },
+    "prepared_by": {
+      "type": "string",
+      "description": "User who prepared the log"
+    },
+    "weather": {
+      "type": "string",
+      "description": "Weather conditions"
+    },
+    "temperature": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "log_date"
+  ]
+}

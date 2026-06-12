@@ -1,0 +1,110 @@
+{
+  "name": "Invoice",
+  "type": "object",
+  "properties": {
+    "number": {
+      "type": "string",
+      "description": "Invoice number"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Associated project"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Client company ID"
+    },
+    "period_start": {
+      "type": "string",
+      "format": "date",
+      "description": "Billing period start"
+    },
+    "period_end": {
+      "type": "string",
+      "format": "date",
+      "description": "Billing period end"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Draft",
+        "Sent",
+        "Partial",
+        "Paid",
+        "Void"
+      ],
+      "default": "Draft",
+      "description": "Invoice status"
+    },
+    "line_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "rate": {
+            "type": "number"
+          },
+          "amount": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "subtotal": {
+      "type": "number",
+      "default": 0
+    },
+    "tax_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "retention_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "total": {
+      "type": "number",
+      "default": 0,
+      "description": "Total amount due"
+    },
+    "balance_open": {
+      "type": "number",
+      "default": 0,
+      "description": "Remaining balance"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "sent_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When invoice was sent"
+    },
+    "paid_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When fully paid"
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "File URLs for supporting documents"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "client_id"
+  ]
+}

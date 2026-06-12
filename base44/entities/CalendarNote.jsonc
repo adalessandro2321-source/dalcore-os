@@ -1,0 +1,47 @@
+{
+  "name": "CalendarNote",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "Google Calendar event ID"
+    },
+    "event_title": {
+      "type": "string",
+      "description": "Event title for reference"
+    },
+    "event_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event date/time"
+    },
+    "reminder_sent": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether reminder was sent"
+    },
+    "follow_up_notes": {
+      "type": "string",
+      "description": "Post-meeting follow-up notes"
+    },
+    "action_items": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Action items from the meeting"
+    },
+    "attendees": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Meeting attendees"
+    }
+  },
+  "required": [
+    "event_id",
+    "event_title",
+    "event_date"
+  ]
+}

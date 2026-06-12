@@ -1,0 +1,58 @@
+{
+  "name": "PerformanceObligation",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Associated project"
+    },
+    "contract_id": {
+      "type": "string",
+      "description": "Associated contract (optional)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Performance obligation name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description"
+    },
+    "percentage_of_contract": {
+      "type": "number",
+      "description": "% of total contract value (0-100)"
+    },
+    "allocated_value": {
+      "type": "number",
+      "description": "Dollar value allocated to this obligation"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Not Started",
+        "In Progress",
+        "Completed"
+      ],
+      "default": "Not Started",
+      "description": "Completion status"
+    },
+    "completion_date": {
+      "type": "string",
+      "format": "date",
+      "description": "When this obligation was completed (for revenue recognition)"
+    },
+    "estimated_completion_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Expected completion date"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "name",
+    "percentage_of_contract"
+  ]
+}

@@ -1,0 +1,181 @@
+{
+  "name": "ProjectBudget",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Associated project"
+    },
+    "estimate_id": {
+      "type": "string",
+      "description": "Source estimate used as baseline"
+    },
+    "original_contract_value": {
+      "type": "number",
+      "default": 0
+    },
+    "approved_co_value": {
+      "type": "number",
+      "default": 0
+    },
+    "revised_contract_value": {
+      "type": "number",
+      "default": 0
+    },
+    "baseline_total_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "Estimated project cost from original estimate"
+    },
+    "baseline_labor_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "Labor cost from estimate"
+    },
+    "baseline_materials_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "Materials cost from estimate"
+    },
+    "baseline_subcontractor_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "Subcontractor cost from estimate"
+    },
+    "baseline_admin_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "Admin cost from estimate"
+    },
+    "baseline_overhead_cost": {
+      "type": "number",
+      "default": 0,
+      "description": "Overhead/burden cost from estimate"
+    },
+    "baseline_gp": {
+      "type": "number",
+      "default": 0,
+      "description": "Original estimated profit from estimate"
+    },
+    "ar_invoiced": {
+      "type": "number",
+      "default": 0,
+      "description": "Total invoiced"
+    },
+    "ar_collected": {
+      "type": "number",
+      "default": 0,
+      "description": "Total collected"
+    },
+    "ar_open": {
+      "type": "number",
+      "default": 0,
+      "description": "Outstanding receivables"
+    },
+    "ap_billed": {
+      "type": "number",
+      "default": 0,
+      "description": "Total billed by vendors"
+    },
+    "ap_paid": {
+      "type": "number",
+      "default": 0,
+      "description": "Total paid to vendors"
+    },
+    "ap_open": {
+      "type": "number",
+      "default": 0,
+      "description": "Outstanding payables"
+    },
+    "committed_costs": {
+      "type": "number",
+      "default": 0
+    },
+    "actual_costs": {
+      "type": "number",
+      "default": 0
+    },
+    "cogs_labor_field": {
+      "type": "number",
+      "default": 0,
+      "description": "Field labor costs"
+    },
+    "cogs_labor_supervision": {
+      "type": "number",
+      "default": 0,
+      "description": "Site supervision costs"
+    },
+    "cogs_project_management": {
+      "type": "number",
+      "default": 0,
+      "description": "PM costs"
+    },
+    "cogs_materials": {
+      "type": "number",
+      "default": 0,
+      "description": "Materials costs"
+    },
+    "cogs_subcontractors": {
+      "type": "number",
+      "default": 0,
+      "description": "Subcontractor costs"
+    },
+    "cogs_equipment": {
+      "type": "number",
+      "default": 0,
+      "description": "Equipment rental costs"
+    },
+    "cogs_permits": {
+      "type": "number",
+      "default": 0,
+      "description": "Permits & inspections"
+    },
+    "cogs_waste": {
+      "type": "number",
+      "default": 0,
+      "description": "Waste disposal"
+    },
+    "cogs_utilities": {
+      "type": "number",
+      "default": 0,
+      "description": "Site utilities"
+    },
+    "cogs_insurance": {
+      "type": "number",
+      "default": 0,
+      "description": "Job-specific insurance"
+    },
+    "cogs_total": {
+      "type": "number",
+      "default": 0,
+      "description": "Total COGS/Direct Job Costs"
+    },
+    "uncommitted_forecast": {
+      "type": "number",
+      "default": 0
+    },
+    "forecast_at_completion": {
+      "type": "number",
+      "default": 0
+    },
+    "cost_to_complete": {
+      "type": "number",
+      "default": 0
+    },
+    "percent_complete_cost": {
+      "type": "number",
+      "default": 0
+    },
+    "gp_forecast": {
+      "type": "number",
+      "default": 0
+    },
+    "last_recalculated": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "project_id"
+  ]
+}

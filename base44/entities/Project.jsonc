@@ -1,0 +1,89 @@
+{
+  "name": "Project",
+  "type": "object",
+  "properties": {
+    "number": {
+      "type": "string",
+      "description": "Project number"
+    },
+    "name": {
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "description": "Source opportunity if created from one"
+    },
+    "estimate_id": {
+      "type": "string",
+      "description": "Baseline estimate for financial benchmarking"
+    },
+    "address": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "zip": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Planning",
+        "Bidding",
+        "Active",
+        "On Hold",
+        "Completed",
+        "Closed"
+      ],
+      "default": "Planning"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "target_completion_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "actual_completion_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "contract_value": {
+      "type": "number"
+    },
+    "budget": {
+      "type": "number"
+    },
+    "spent_to_date": {
+      "type": "number"
+    },
+    "percent_complete": {
+      "type": "number"
+    },
+    "project_manager": {
+      "type": "string",
+      "description": "User email"
+    },
+    "superintendent": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "client_id"
+  ]
+}

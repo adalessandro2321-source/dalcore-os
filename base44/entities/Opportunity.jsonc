@@ -1,0 +1,64 @@
+{
+  "name": "Opportunity",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Opportunity name"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Client company ID"
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "Lead",
+        "Qualified",
+        "Bidding",
+        "No Longer Bidding",
+        "Awarded",
+        "Under Contract",
+        "Lost"
+      ],
+      "default": "Lead"
+    },
+    "estimated_value": {
+      "type": "number"
+    },
+    "probability": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "bid_due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "project_start_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "assigned_to": {
+      "type": "string",
+      "description": "User email"
+    },
+    "estimate_id": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "client_id",
+    "stage"
+  ]
+}

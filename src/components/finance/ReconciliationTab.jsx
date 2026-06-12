@@ -20,10 +20,12 @@ import {
   FolderOpen,
   Plus,
   CheckCircle2,
-  Clock
+  Clock,
+  Wrench
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatCurrency, formatDate } from "../shared/DateFormatter";
+import CORepairModal from "./CORepairModal";
 
 const MATERIAL_CATEGORIES = ["Material", "Labor", "Tool", "Fuel", "Equipment Rental", "Dump Fee", "Permit", "Administration", "Misc"];
 
@@ -46,6 +48,7 @@ export default function ReconciliationTab() {
   const [draftName, setDraftName] = React.useState('');
   const [savingDraft, setSavingDraft] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [showRepairModal, setShowRepairModal] = React.useState(false);
   const queryClient = useQueryClient();
 
   const { data: currentUser } = useQuery({
@@ -111,7 +114,9 @@ export default function ReconciliationTab() {
           description: t.description || '',
           notes: t.notes || '',
           entered_by: currentUser?.email || '',
-          approved: currentUser?.role === 'admin'
+          approved: currentUser?.role === 'admin',
+          // Persist CO link on the record itself (only for existing COs, not __new__)
+          change_order_id: (t.change_order_id && t.change_order_id !== '__new__') ? t.change_order_id : undefined
         }));
 
       const operatingExpenses = transactions
@@ -424,19 +429,30 @@ export default function ReconciliationTab() {
                   Upload statements and work through them at your own pace. Drafts are saved automatically.
                 </p>
               </div>
-              <label htmlFor="statement-upload-new" className="cursor-pointer">
+              <div className="flex items-center gap-2">
                 <Button
                   type="button"
-                  className="bg-[#0E351F] hover:bg-[#3B5B48] text-white pointer-events-none"
-                  disabled={extractingStatement}
+                  variant="outline"
+                  onClick={() => setShowRepairModal(true)}
+                  className="border-orange-300 text-orange-700 hover:bg-orange-50"
                 >
-                  {extractingStatement ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Extracting...</>
-                  ) : (
-                    <><Plus className="w-4 h-4 mr-2" />Upload New Statement</>
-                  )}
+                  <Wrench className="w-4 h-4 mr-2" />
+                  Fix CO Links
                 </Button>
-              </label>
+                <label htmlFor="statement-upload-new" className="cursor-pointer">
+                  <Button
+                    type="button"
+                    className="bg-[#0E351F] hover:bg-[#3B5B48] text-white pointer-events-none"
+                    disabled={extractingStatement}
+                  >
+                    {extractingStatement ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Extracting...</>
+                    ) : (
+                      <><Plus className="w-4 h-4 mr-2" />Upload New Statement</>
+                    )}
+                  </Button>
+                </label>
+              </div>
             </div>
             <div className="flex items-center gap-3 mt-3">
               <label className="text-sm font-medium text-gray-700">Type:</label>
@@ -523,6 +539,9 @@ export default function ReconciliationTab() {
             )}
           </CardContent>
         </Card>
+
+        {/* CO Repair Modal */}
+        <CORepairModal open={showRepairModal} onClose={() => setShowRepairModal(false)} />
 
         {/* Name draft modal */}
         <Dialog open={showNewDraftModal} onOpenChange={setShowNewDraftModal}>

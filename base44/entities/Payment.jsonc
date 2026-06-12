@@ -1,0 +1,67 @@
+{
+  "name": "Payment",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "Incoming",
+        "Outgoing"
+      ],
+      "description": "Payment direction"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Payment amount"
+    },
+    "payment_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "payment_method": {
+      "type": "string",
+      "enum": [
+        "Check",
+        "Wire",
+        "ACH",
+        "Credit Card",
+        "Cash"
+      ]
+    },
+    "reference_number": {
+      "type": "string"
+    },
+    "applies_to_type": {
+      "type": "string",
+      "enum": [
+        "Invoice",
+        "Bill"
+      ],
+      "description": "Type of document this payment applies to"
+    },
+    "applies_to_id": {
+      "type": "string",
+      "description": "ID of Invoice or Bill"
+    },
+    "applied_amount": {
+      "type": "number",
+      "description": "Amount applied to document"
+    },
+    "remaining_balance_after": {
+      "type": "number",
+      "description": "Balance after payment"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "type",
+    "amount",
+    "payment_date"
+  ]
+}

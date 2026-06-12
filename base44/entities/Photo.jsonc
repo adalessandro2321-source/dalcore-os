@@ -1,0 +1,49 @@
+{
+  "name": "Photo",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "album": {
+      "type": "string"
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "Photo",
+        "Video"
+      ],
+      "default": "Photo"
+    },
+    "caption": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "taken_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "location": {
+      "type": "string"
+    },
+    "area": {
+      "type": "string"
+    },
+    "trade": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "file_url"
+  ]
+}

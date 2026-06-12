@@ -1,0 +1,50 @@
+{
+  "name": "ChatThread",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Owner of this thread"
+    },
+    "agent_conversation_id": {
+      "type": "string",
+      "description": "Agent system conversation ID"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Optional project scope"
+    },
+    "title": {
+      "type": "string",
+      "description": "Thread title (auto-generated or user-set)"
+    },
+    "pinned": {
+      "type": "boolean",
+      "default": false,
+      "description": "Pinned to top"
+    },
+    "scope_type": {
+      "type": "string",
+      "enum": [
+        "Company",
+        "Project",
+        "Vendor"
+      ],
+      "default": "Company",
+      "description": "Conversation scope"
+    },
+    "scope_id": {
+      "type": "string",
+      "description": "ID of scoped entity"
+    },
+    "last_message_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last message timestamp"
+    }
+  },
+  "required": [
+    "user_email",
+    "title"
+  ]
+}

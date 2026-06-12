@@ -1,0 +1,43 @@
+{
+  "name": "Template",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Template name"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "Proposal",
+        "Contract",
+        "Invoice",
+        "Change Order",
+        "Estimate",
+        "Quote",
+        "Report"
+      ],
+      "description": "Template type"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "Template file URL"
+    },
+    "description": {
+      "type": "string"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "google_drive_id": {
+      "type": "string",
+      "description": "Google Drive file ID if synced from Drive"
+    }
+  },
+  "required": [
+    "name",
+    "type",
+    "file_url"
+  ]
+}

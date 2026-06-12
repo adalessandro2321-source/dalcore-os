@@ -1,0 +1,46 @@
+{
+  "name": "WebResult",
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Search query"
+    },
+    "title": {
+      "type": "string",
+      "description": "Result title"
+    },
+    "url": {
+      "type": "string",
+      "description": "Result URL"
+    },
+    "domain": {
+      "type": "string",
+      "description": "Domain (e.g., osha.gov)"
+    },
+    "snippet": {
+      "type": "string",
+      "description": "Result snippet/summary"
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When content was published"
+    },
+    "retrieved_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When result was retrieved"
+    },
+    "rank": {
+      "type": "number",
+      "description": "Search result rank"
+    }
+  },
+  "required": [
+    "query",
+    "title",
+    "url",
+    "domain"
+  ]
+}

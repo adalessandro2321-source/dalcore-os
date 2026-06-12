@@ -1,0 +1,83 @@
+{
+  "name": "OperatingExpense",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Expense date"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Salaries & Wages",
+        "Professional Services",
+        "Office Rent",
+        "Utilities",
+        "Insurance",
+        "Marketing",
+        "Software & Technology",
+        "Depreciation",
+        "Interest",
+        "Taxes",
+        "Other"
+      ],
+      "description": "Expense category"
+    },
+    "subcategory": {
+      "type": "string",
+      "description": "Optional subcategory"
+    },
+    "vendor": {
+      "type": "string",
+      "description": "Who was paid"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Expense amount"
+    },
+    "description": {
+      "type": "string",
+      "description": "What this expense was for"
+    },
+    "payment_method": {
+      "type": "string",
+      "enum": [
+        "Check",
+        "ACH",
+        "Wire",
+        "Credit Card",
+        "Cash"
+      ],
+      "description": "How it was paid"
+    },
+    "reference_number": {
+      "type": "string",
+      "description": "Check number, transaction ID, etc."
+    },
+    "recurring": {
+      "type": "boolean",
+      "default": false,
+      "description": "Is this a recurring expense"
+    },
+    "recurring_frequency": {
+      "type": "string",
+      "enum": [
+        "Weekly",
+        "Semi-Monthly",
+        "Monthly",
+        "Quarterly",
+        "Annually"
+      ],
+      "description": "Frequency if recurring"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "date",
+    "category",
+    "amount"
+  ]
+}

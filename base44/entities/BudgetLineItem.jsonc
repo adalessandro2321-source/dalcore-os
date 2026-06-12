@@ -1,0 +1,76 @@
+{
+  "name": "BudgetLineItem",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Associated project"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Labor - Field",
+        "Labor - Supervision",
+        "Labor - Project Management",
+        "Materials",
+        "Subcontractors",
+        "Equipment Rental",
+        "Permits & Fees",
+        "Insurance",
+        "Utilities",
+        "Waste Disposal",
+        "Professional Services",
+        "Contingency",
+        "Other"
+      ],
+      "description": "Budget category"
+    },
+    "description": {
+      "type": "string",
+      "description": "Line item description"
+    },
+    "budgeted_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Original budgeted amount"
+    },
+    "revised_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Current revised budget amount"
+    },
+    "committed_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Amount committed to vendors/subs"
+    },
+    "actual_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Actual spent amount"
+    },
+    "variance": {
+      "type": "number",
+      "default": 0,
+      "description": "Budget variance (revised - actual)"
+    },
+    "variance_percent": {
+      "type": "number",
+      "default": 0,
+      "description": "Variance as percentage"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "is_from_estimate": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this line item was imported from estimate"
+    }
+  },
+  "required": [
+    "project_id",
+    "category",
+    "description"
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "name": "ClientFeedback",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Associated project"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Client company ID"
+    },
+    "submitted_by": {
+      "type": "string",
+      "description": "User email who submitted feedback"
+    },
+    "overall_rating": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Overall satisfaction rating (1-5)"
+    },
+    "quality_rating": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Quality of work rating (1-5)"
+    },
+    "communication_rating": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Communication rating (1-5)"
+    },
+    "timeliness_rating": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Timeliness rating (1-5)"
+    },
+    "budget_rating": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Budget management rating (1-5)"
+    },
+    "comments": {
+      "type": "string",
+      "description": "Additional comments and feedback"
+    },
+    "would_recommend": {
+      "type": "boolean",
+      "description": "Would recommend to others"
+    },
+    "testimonial_approved": {
+      "type": "boolean",
+      "default": false,
+      "description": "Can be used as testimonial"
+    },
+    "areas_of_excellence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "What we did well"
+    },
+    "areas_for_improvement": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "What we can improve"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Submitted",
+        "Reviewed",
+        "Addressed"
+      ],
+      "default": "Submitted",
+      "description": "Feedback status"
+    }
+  },
+  "required": [
+    "project_id",
+    "client_id",
+    "overall_rating"
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "name": "Document",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Associated project (if applicable)"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "description": "Associated opportunity (if applicable)"
+    },
+    "folder": {
+      "type": "string",
+      "enum": [
+        "Contracts",
+        "Correspondences",
+        "Drawings & Specs",
+        "Estimates",
+        "Invoices",
+        "Permits",
+        "Photos",
+        "Proposals",
+        "Quotes",
+        "Schedules",
+        "Change Orders",
+        "Bills",
+        "Payments"
+      ],
+      "description": "Document folder/category"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "Plan",
+        "Specification",
+        "Contract",
+        "Change Order",
+        "Invoice",
+        "Bill",
+        "Payment",
+        "RFI",
+        "Submittal",
+        "Report",
+        "Other"
+      ]
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "linked_entity_type": {
+      "type": "string",
+      "description": "Type of linked entity (Invoice, Bill, ChangeOrder, etc.)"
+    },
+    "linked_entity_id": {
+      "type": "string",
+      "description": "ID of the linked financial entity"
+    },
+    "version": {
+      "type": "number",
+      "default": 1
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "file_url"
+  ]
+}

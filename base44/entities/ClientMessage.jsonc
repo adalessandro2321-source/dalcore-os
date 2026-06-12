@@ -1,0 +1,80 @@
+{
+  "name": "ClientMessage",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Associated project (optional)"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "description": "Associated opportunity (optional)"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Client company ID"
+    },
+    "sender_email": {
+      "type": "string",
+      "description": "Email of sender"
+    },
+    "sender_type": {
+      "type": "string",
+      "enum": [
+        "Client",
+        "Team"
+      ],
+      "description": "Who sent the message"
+    },
+    "subject": {
+      "type": "string",
+      "description": "Message subject"
+    },
+    "message": {
+      "type": "string",
+      "description": "Message content"
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "File URLs for attachments"
+    },
+    "read": {
+      "type": "boolean",
+      "default": false,
+      "description": "Has been read"
+    },
+    "read_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When message was read"
+    },
+    "thread_id": {
+      "type": "string",
+      "description": "For grouping related messages"
+    },
+    "reply_to_id": {
+      "type": "string",
+      "description": "ID of message this is replying to"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "Normal",
+        "High",
+        "Urgent"
+      ],
+      "default": "Normal",
+      "description": "Message priority"
+    }
+  },
+  "required": [
+    "client_id",
+    "sender_email",
+    "sender_type",
+    "subject",
+    "message"
+  ]
+}

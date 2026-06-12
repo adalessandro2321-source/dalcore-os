@@ -1,0 +1,43 @@
+{
+  "name": "PromptTemplate",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Template name"
+    },
+    "purpose": {
+      "type": "string",
+      "enum": [
+        "Email",
+        "Contract",
+        "Change Order",
+        "RFI",
+        "Submittal",
+        "Invoice",
+        "Proposal"
+      ],
+      "description": "Template purpose"
+    },
+    "body": {
+      "type": "string",
+      "description": "Template content with {{variables}}"
+    },
+    "variables": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of variable names"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "purpose",
+    "body"
+  ]
+}

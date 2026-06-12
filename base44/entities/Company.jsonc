@@ -1,0 +1,56 @@
+{
+  "name": "Company",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Company name"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "Owner",
+        "GC",
+        "Subcontractor",
+        "Supplier",
+        "Consultant"
+      ],
+      "description": "Company type"
+    },
+    "address": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "zip": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "insurance_expiry": {
+      "type": "string",
+      "format": "date"
+    },
+    "insurance_amount": {
+      "type": "number"
+    },
+    "license_number": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "type"
+  ]
+}

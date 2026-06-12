@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "phone": {
+      "type": "string",
+      "description": "Phone number"
+    },
+    "company_id": {
+      "type": "string",
+      "description": "Associated company"
+    },
+    "title": {
+      "type": "string",
+      "description": "Job title"
+    }
+  },
+  "name": "User",
+  "required": [
+    "phone",
+    "company_id",
+    "title"
+  ]
+}

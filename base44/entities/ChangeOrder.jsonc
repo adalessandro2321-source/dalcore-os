@@ -1,0 +1,110 @@
+{
+  "name": "ChangeOrder",
+  "type": "object",
+  "properties": {
+    "number": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "estimate_id": {
+      "type": "string",
+      "description": "Reference to baseline estimate"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "line_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "Addition",
+              "Credit"
+            ],
+            "description": "Addition increases cost, Credit decreases cost"
+          },
+          "description": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "unit_cost": {
+            "type": "number"
+          },
+          "material_cost": {
+            "type": "number"
+          },
+          "labor_hours": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "original_estimate_ref": {
+            "type": "string",
+            "description": "Reference to original estimate line item if applicable"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "default": []
+    },
+    "subtotal": {
+      "type": "number",
+      "default": 0,
+      "description": "Sum of all line items"
+    },
+    "cost_impact": {
+      "type": "number",
+      "description": "Total cost impact (calculated from line items)"
+    },
+    "schedule_impact_days": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Draft",
+        "Pending",
+        "Approved",
+        "Completed",
+        "Rejected"
+      ],
+      "default": "Draft"
+    },
+    "requested_by": {
+      "type": "string"
+    },
+    "approved_by": {
+      "type": "string"
+    },
+    "approved_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "reason"
+  ]
+}
