@@ -472,7 +472,7 @@ export default function ChangeOrderDetail() {
 
       {/* Edit Modal */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="bg-[#F5F4F3] border-gray-300 text-gray-900 max-w-2xl">
+        <DialogContent className="bg-[#F5F4F3] border-gray-300 text-gray-900 max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Change Order</DialogTitle>
           </DialogHeader>
