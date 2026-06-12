@@ -1114,11 +1114,11 @@ export default function MaterialCosts({ projectId, project }) {
                               <SelectContent>
                                <SelectItem value={null}>None — standard project cost</SelectItem>
                                <SelectItem value="__new__">+ Create New Change Order</SelectItem>
-                                 {changeOrders.map(co => (
-                                  <SelectItem key={co.id} value={co.id}>
-                                    {co.number ? `CO# ${co.number}` : co.reason?.substring(0, 20)} ({co.status})
-                                  </SelectItem>
-                                 ))}
+                               {changeOrders.map(co => (
+                                 <SelectItem key={co.id} value={co.id}>
+                                   {co.number ? `CO# ${co.number}` : co.reason?.substring(0, 20)} ({co.status})
+                                 </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                             {transaction.change_order_id === '__new__' && (
