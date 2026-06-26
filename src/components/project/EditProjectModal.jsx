@@ -81,7 +81,6 @@ export default function EditProjectModal({ project, onClose, onSuccess }) {
               value={formData.client_id || ''}
               onChange={(value) => setFormData({...formData, client_id: value})}
               placeholder="Select client"
-              allowAll
             />
           </div>
 

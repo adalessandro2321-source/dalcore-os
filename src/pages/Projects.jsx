@@ -248,7 +248,6 @@ export default function Projects() {
                 value={formData.client_id || ''}
                 onChange={(value) => setFormData({...formData, client_id: value})}
                 placeholder="Select client (required)"
-                allowAll
               />
               {companies.length === 0 && (
                 <p className="text-xs text-orange-600 mt-1">

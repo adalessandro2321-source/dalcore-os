@@ -5,14 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Check, ChevronsUpDown, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export default function CompanySelect({ companies, value, onChange, placeholder = "Select client", allowAll = false }) {
+export default function CompanySelect({ companies, value, onChange, placeholder = "Select client" }) {
   const [open, setOpen] = React.useState(false);
 
-  const filtered = allowAll
-    ? companies
-    : companies.filter(c => c.type === 'Owner' || c.type === 'GC');
-
-  const selected = filtered.find(c => c.id === value);
+  const selected = companies.find(c => c.id === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -41,7 +37,7 @@ export default function CompanySelect({ companies, value, onChange, placeholder 
           <CommandList>
             <CommandEmpty>No company found.</CommandEmpty>
             <CommandGroup>
-              {filtered.map((company) => (
+              {companies.map((company) => (
                 <CommandItem
                   key={company.id}
                   value={`${company.name} ${company.type || ''} ${company.city || ''} ${company.email || ''}`}
