@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import CompanySelect from "../components/shared/CompanySelect";
 
 export default function Projects() {
   const navigate = useNavigate();
@@ -243,31 +243,16 @@ export default function Projects() {
 
             <div>
               <Label>Client <span className="text-red-600">*</span></Label>
-              <Select
-                required
+              <CompanySelect
+                companies={companies}
                 value={formData.client_id || ''}
-                onValueChange={(value) => setFormData({...formData, client_id: value})}
-              >
-                <SelectTrigger className="bg-white border-gray-300 text-gray-900">
-                  <SelectValue placeholder="Select client (required)" />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-gray-300">
-                  {companies.filter(c => c.type === 'Owner').length === 0 ? (
-                    <div className="p-2 text-sm text-gray-600">
-                      No clients available. Please create a company with type "Owner" first.
-                    </div>
-                  ) : (
-                    companies.filter(c => c.type === 'Owner').map((company) => (
-                      <SelectItem key={company.id} value={company.id}>
-                        {company.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              {companies.filter(c => c.type === 'Owner').length === 0 && (
+                onChange={(value) => setFormData({...formData, client_id: value})}
+                placeholder="Select client (required)"
+                allowAll
+              />
+              {companies.length === 0 && (
                 <p className="text-xs text-orange-600 mt-1">
-                  No clients found. Go to Companies page and create a company with type "Owner".
+                  No companies found. Go to the Companies page to create one.
                 </p>
               )}
             </div>

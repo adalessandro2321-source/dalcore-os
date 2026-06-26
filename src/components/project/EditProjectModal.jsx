@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import CompanySelect from "../shared/CompanySelect";
 
 export default function EditProjectModal({ project, onClose, onSuccess }) {
   const [formData, setFormData] = React.useState({
@@ -75,21 +76,13 @@ export default function EditProjectModal({ project, onClose, onSuccess }) {
 
           <div>
             <Label>Client</Label>
-            <Select
-              value={formData.client_id}
-              onValueChange={(value) => setFormData({...formData, client_id: value})}
-            >
-              <SelectTrigger className="bg-white border-gray-300 text-gray-900">
-                <SelectValue placeholder="Select client" />
-              </SelectTrigger>
-              <SelectContent className="bg-white border-gray-300">
-                {companies.filter(c => c.type === 'Owner').map((company) => (
-                  <SelectItem key={company.id} value={company.id}>
-                    {company.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <CompanySelect
+              companies={companies}
+              value={formData.client_id || ''}
+              onChange={(value) => setFormData({...formData, client_id: value})}
+              placeholder="Select client"
+              allowAll
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
