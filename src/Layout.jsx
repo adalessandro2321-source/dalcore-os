@@ -19,7 +19,8 @@ import {
   Menu,
   X,
   FileStack,
-  MessageSquare
+  MessageSquare,
+  Table2
 } from "lucide-react";
 import {
   CommandDialog,
@@ -40,6 +41,7 @@ const navigationItems = [
   { title: "Schedule", url: "Schedule", icon: Calendar },
   { title: "Weekly Schedule", url: "WeeklySchedule", icon: Calendar },
   { title: "Bills/Invoices", url: "BillsInvoices", icon: DollarSign },
+  { title: "All Transactions", url: "AllTransactions", icon: Table2 },
   { title: "Finance", url: "Finance", icon: DollarSign },
   { title: "Tax Audits", url: "TaxAudit2025", icon: FileText },
   { title: "Companies", url: "Companies", icon: Building2 },
@@ -90,9 +92,8 @@ export default function Layout({ children, currentPageName }) {
     return <div className="min-h-screen">{children}</div>;
   }
 
-  const displayPageName = currentPageName === "ProjectDetail" 
-    ? "Project Detail" 
-    : (currentPageName || '');
+  const pageTitles = { ProjectDetail: "Project Detail", AllTransactions: "All Transactions" };
+  const displayPageName = pageTitles[currentPageName] || currentPageName || '';
 
   // Helper to check if current page is active - using currentPageName instead of location
   const isPageActive = (pageUrl) => {
